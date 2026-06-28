@@ -1,0 +1,80 @@
+{
+  "success": false,
+  "all_paths_ready": false,
+  "parsed_int_reports": 1,
+  "metric_sample_counts": {
+    "0": 0,
+    "1": 0,
+    "2": 1
+  },
+  "state_window_ms": 30000.0,
+  "source_swid": 2,
+  "sink_swid": 1,
+  "received_probe_packets": 0,
+  "probe_packets": [],
+  "int_reports": [
+    {
+      "hop_count": 2,
+      "original_protocol": 6,
+      "original_total_len": 60,
+      "trace_id": 516,
+      "hops": [
+        {
+          "swid": 2,
+          "port_ingress": 1,
+          "port_egress": 4,
+          "byte_ingress": 28391616,
+          "byte_egress": 10241312,
+          "count_ingress": 18786,
+          "count_egress": 6768,
+          "curr_time_ingress": 38208945,
+          "curr_time_egress": 38208945,
+          "qdepth": 0
+        },
+        {
+          "swid": 1,
+          "port_ingress": 4,
+          "port_egress": 1,
+          "byte_ingress": 9518000,
+          "byte_egress": 28676708,
+          "count_ingress": 6812,
+          "count_egress": 20788,
+          "curr_time_ingress": 38241930,
+          "curr_time_egress": 38243003,
+          "qdepth": 0
+        }
+      ]
+    }
+  ],
+  "raw_metrics": {
+    "2": {
+      "source_swid": 2,
+      "sink_swid": 1,
+      "source_egress_port": 4,
+      "sink_ingress_port": 4,
+      "delay_us": 32985.0,
+      "jitter_us": 0.0,
+      "loss_rate": 0.0,
+      "bw_bytes_per_s": 268034.4092201447,
+      "qdepth": 0,
+      "interval_us": 38208945.0,
+      "sent_delta": 1,
+      "recv_delta": 1,
+      "byte_delta": 10241312,
+      "sequence_id": 516,
+      "sequence_gap": 0
+    }
+  },
+  "path_states": {
+    "2": {
+      "path_id": 2,
+      "delay_ms": 32.985,
+      "jitter_ms": 0.0,
+      "loss_rate": 0.0,
+      "bw_utilization": 0.21442752737611573,
+      "qdepth_avg": 0.0,
+      "timestamp": 1782228508.099005,
+      "sample_count": 1
+    }
+  }
+}

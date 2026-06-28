@@ -1,0 +1,32 @@
+[
+  {
+    "strategy_id": 0,
+    "strategy_complete": true,
+    "hidden_match": true,
+    "tagged_packets": 209,
+    "forwarded_business_packets": 674,
+    "int_success": true,
+    "int_reports": 2029,
+    "int_paths": "0,1,2",
+    "metric_sample_counts": {
+      "0": 1018,
+      "1": 496,
+      "2": 515
+    }
+  },
+  {
+    "strategy_id": 1,
+    "strategy_complete": true,
+    "hidden_match": true,
+    "tagged_packets": 157,
+    "forwarded_business_packets": 674,
+    "int_success": true,
+    "int_reports": 580,
+    "int_paths": "0,1,2",
+    "metric_sample_counts": {
+      "0": 288,
+      "1": 148,
+      "2": 144
+    }
+  }
+]

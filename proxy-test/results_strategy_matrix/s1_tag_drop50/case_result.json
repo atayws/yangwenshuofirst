@@ -1,0 +1,61 @@
+{
+  "case": "s1_tag_drop50",
+  "strategy_id": 1,
+  "business_sent_to_proxy": 280,
+  "business_dropped_before_proxy": 0,
+  "tag_drop_every": 50,
+  "sender": {
+    "mode": "sender",
+    "strategy_id": 1,
+    "hidden_bytes": 13,
+    "covert_packets_required": 157,
+    "business_packets_received": 280,
+    "tagged_packets_sent": 157,
+    "dropped_tagged_packets": 3,
+    "plain_packets_sent": 123,
+    "complete": true,
+    "duration_s": 11.845
+  },
+  "receiver": {
+    "mode": "receiver",
+    "strategy_id": 1,
+    "packets_received": 277,
+    "tagged_packets": 154,
+    "plain_packets": 123,
+    "forwarded_business_packets": 277,
+    "hidden_decoded_bytes": 13,
+    "hidden_output": "C:\\Users\\Lenovo\\Desktop\\毕设代码\\proxy-test\\results_strategy_matrix\\s1_tag_drop50\\hidden_out.bin",
+    "success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": false,
+      "total_symbols": 52,
+      "decoded_symbols": 48,
+      "unknown_symbols": [
+        16,
+        33,
+        49,
+        50
+      ],
+      "unknown_bits": [
+        32,
+        33,
+        66,
+        67,
+        98,
+        99,
+        100,
+        101
+      ],
+      "packets_seen": 154,
+      "tagged_packets": 154
+    }
+  },
+  "forwarded_business_packets": 277,
+  "hidden_match": false,
+  "bit_accuracy": 0.9423,
+  "bit_correct": 98,
+  "bit_total": 104,
+  "decoded_bits": "10111101101010011110011101001110000101010000011100101000010001110100101011011010101110100001100101000001",
+  "first_forwarded": "iperf-s1_tag_drop50-000"
+}

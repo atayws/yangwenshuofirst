@@ -1,0 +1,3 @@
+strategy_id,strategy_complete,hidden_match,tagged_packets,forwarded_business_packets,int_success,int_reports,int_paths,metric_sample_counts
+0,True,True,209,674,True,2029,"0,1,2","{'0': 1018, '1': 496, '2': 515}"
+1,True,True,157,674,True,580,"0,1,2","{'0': 288, '1': 148, '2': 144}"

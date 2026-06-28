@@ -1,0 +1,7 @@
+﻿case,received_packets,packet_loss_count,reordered,decode_success,complete,exact_match,bit_matches,bit_total,bit_match_ratio,unknown_count,reason
+clean_ordered,252,0,False,True,True,True,100,100,1.0,0,
+reordered_by_fragment,252,0,True,True,True,True,100,100,1.0,0,
+one_data_packet_loss,251,1,False,True,False,False,99,100,0.99,1,可用路径窗口不足或存在未知符号
+sparse_data_packet_loss,249,3,False,True,False,False,97,100,0.97,3,可用路径窗口不足或存在未知符号
+invalid_data_permutation,252,0,False,True,False,False,99,100,0.99,1,可用路径窗口不足或存在未知符号
+header_packet_loss,251,1,False,False,False,False,0,100,0.0,1,帧头 magic 错误

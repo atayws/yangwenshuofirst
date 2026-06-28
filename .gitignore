@@ -1,0 +1,62 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Local assistant / machine configuration
+.agents/
+.claude/
+.codex/
+
+# P4 compilation outputs
+p4/build/
+p4/*.json
+*.p4i
+
+# Python virtual env
+venv/
+.venv/
+
+# Logs
+logs/
+*.log
+
+# Packet capture / temporary runtime artifacts
+*.pcap
+*.pcapng
+*.tmp
+*.bak
+
+# Experiment results
+experiments/results/*
+!experiments/results/summary/
+!experiments/results/plots/
+!experiments/results/models/
+experiments/results/summary/*
+experiments/results/plots/*
+experiments/results/models/*
+!experiments/results/summary/.gitkeep
+!experiments/results/plots/.gitkeep
+!experiments/results/models/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyTest
+.pytest_cache/
+htmlcov/
+.coverage

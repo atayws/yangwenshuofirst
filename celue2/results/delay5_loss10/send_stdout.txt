@@ -1,0 +1,2 @@
+strategy=2 packets=576 input_bytes=64
+send_done=true

@@ -1,0 +1,90 @@
+﻿# 中文注释。
+# 多路径隐蔽传输系统默认配置
+# 中文注释。
+
+# 网络配置
+network:
+  num_links: 3
+  switch_p4_program: "p4/build/covert_int_switch.json"
+  int_collector_port: 50001
+
+# INT 遥测配置
+int:
+  enabled: true
+  collection_interval_ms: 100     # 中文注释。
+  window_size_ms: 500             # 中文注释。
+  instruction_bitmap: 252         # 中文注释。
+
+# 隐蔽策略参数
+strategies:
+  timing_high_covert:
+    short_gap_ms: 30
+    long_gap_ms: 90
+    min_relation_delta_ms: 10
+    max_jitter_tolerance_ms: 15
+  timing_high_capacity:
+    rank_gaps_ms: [25, 60, 100]
+    min_rank_delta_ms: 12
+    max_jitter_tolerance_ms: 10
+  protocol_high_reliability:
+    rs_n: 6
+    rs_k: 4
+  statistical_fusion:
+    length_bands:
+      - [96, 160]
+      - [320, 520]
+      - [720, 940]
+      - [1100, 1360]
+    header_overhead_bytes: 40
+    min_band_gap_bytes: 24
+  full_path_redundancy:
+    rs_m: 3
+    rs_c: 2
+    chunk_size_bytes: 32
+
+# PPO 强化学习智能体超参数
+rl:
+  algorithm: "PPO"
+  num_links: 3
+  state_dim: 12
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_epsilon: 0.2
+  learning_rate: 0.0003
+  update_epochs: 10
+  batch_size: 64
+  buffer_size: 2048
+  entropy_coef: 0.01
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  hidden_dim: 128
+  weights:
+    covertness: 0.40
+    reliability: 0.35
+    throughput: 0.25
+  model_path: "experiments/results/models/ppo_best.pth"
+
+# 实验配置
+experiment:
+  episodes: 500
+  steps_per_episode: 500
+  decision_interval_ms: 100
+  message_size_bytes: 16
+  target_throughput_bps: 100
+  seed: 42
+  scenario: "static_good"
+  output_dir: "experiments/results/"
+  save_interval_episodes: 50
+  plot_interval_steps: 100
+
+# 检测评估配置
+detection:
+  method: "ensemble"
+  sensitivity: 0.5
+
+# 仿真模式配置
+simulation:
+  mode: "offline"   # 中文注释。
+  loss_model: "bernoulli"
+  background_traffic: true
+  background_traffic_bps: 2000

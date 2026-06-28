@@ -1,0 +1,44 @@
+{
+  "case": "s1_rate1_drop",
+  "strategy_id": 1,
+  "interval_ms": 1.0,
+  "drop_mod": 100,
+  "business_sent": 257,
+  "business_dropped_before_proxy": 3,
+  "sender": {
+    "mode": "sender",
+    "strategy_id": 1,
+    "hidden_bytes": 13,
+    "covert_packets_required": 157,
+    "business_packets_received": 257,
+    "tagged_packets_sent": 157,
+    "plain_packets_sent": 100,
+    "complete": true,
+    "duration_s": 11.881
+  },
+  "receiver": {
+    "mode": "receiver",
+    "strategy_id": 1,
+    "packets_received": 257,
+    "tagged_packets": 157,
+    "plain_packets": 100,
+    "forwarded_business_packets": 257,
+    "hidden_decoded_bytes": 13,
+    "hidden_output": "C:\\Users\\Lenovo\\Desktop\\毕设代码\\proxy-test\\results_scheme_b\\s1_rate1_drop\\hidden_out.bin",
+    "success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": true,
+      "total_symbols": 52,
+      "decoded_symbols": 52,
+      "unknown_symbols": [],
+      "unknown_bits": [],
+      "packets_seen": 157,
+      "tagged_packets": 157
+    }
+  },
+  "hidden_match": true,
+  "hidden_hex": "bda9e74ed50728475adaba196d",
+  "forwarded_count": 257,
+  "first_forwarded": "iperf-s1_rate1_drop-001"
+}

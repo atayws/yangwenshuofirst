@@ -1,0 +1,7 @@
+case,delay_ms,loss_rate,expected_packets,received_packets,dropped_fragments,decode_success,exact_match,bit_accuracy,bit_correct,bit_total,complete,unknown_count
+delay5_loss0,5,0.0,157,157,,True,True,1.0,104,104,True,0
+delay20_loss0,20,0.0,157,157,,True,True,1.0,104,104,True,0
+delay50_loss0,50,0.0,157,157,,True,True,1.0,104,104,True,0
+delay5_loss1,5,0.01,157,156,34,True,False,0.9808,102,104,False,2
+delay20_loss1,20,0.01,157,156,127,True,False,0.9904,103,104,False,2
+delay5_loss3,5,0.03,157,152,55 89 106 139 149,True,False,0.9615,100,104,False,10

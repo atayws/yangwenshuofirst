@@ -1,0 +1,52 @@
+{
+  "case": "delay20_loss0",
+  "configured_delay_ms": 20,
+  "configured_loss_pct": 0,
+  "port": 50221,
+  "expected_packets": 576,
+  "packets_received": 576,
+  "estimated_packet_loss_pct": 0.0,
+  "decoded_bytes": 64,
+  "success": true,
+  "hidden_match": true,
+  "input_md5": "302acdb682b936df56f1ccd05cbff571",
+  "decoded_md5": "302acdb682b936df56f1ccd05cbff571",
+  "decode_info": {
+    "scheme": "strategy2-ipid-block-mod-nibble-v3",
+    "complete": true,
+    "decoded_blocks": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "failed_blocks": [],
+    "recovered_by_parity": {},
+    "candidate_blocks": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "auth_failed_blocks": 0,
+    "decoded_bytes": 64,
+    "repeat_count": 3,
+    "note": "没有 fragment_id 元数据时，block_mod 支持 16 个块内的乱序重组；当前中期测试数据规模在该范围内。"
+  }
+}

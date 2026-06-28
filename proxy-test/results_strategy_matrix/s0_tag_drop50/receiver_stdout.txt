@@ -1,0 +1,29 @@
+{
+  "mode": "receiver",
+  "strategy_id": 0,
+  "packets_received": 276,
+  "tagged_packets": 205,
+  "plain_packets": 71,
+  "forwarded_business_packets": 276,
+  "hidden_decoded_bytes": 13,
+  "hidden_output": "C:\\Users\\Lenovo\\Desktop\\毕设代码\\proxy-test\\results_strategy_matrix\\s0_tag_drop50\\hidden_out.bin",
+  "success": true,
+  "decode_info": {
+    "scheme": "B-2byte-sync-tag",
+    "complete": false,
+    "total_bits": 104,
+    "decoded_bits": 96,
+    "unknown_bits": [
+      24,
+      25,
+      49,
+      50,
+      74,
+      75,
+      99,
+      100
+    ],
+    "packets_seen": 205,
+    "tagged_packets": 205
+  }
+}

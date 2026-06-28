@@ -1,0 +1,7 @@
+case,strategy_id,interval_ms,drop_mod,business_sent,business_dropped_before_proxy,tagged_packets,forwarded_count,hidden_match,complete,unknown_count,sender_complete
+s0_rate1_nodrop,0,1.0,,260,0,209,260,True,True,0,True
+s0_rate5_nodrop,0,5.0,,260,0,209,260,True,True,0,True
+s0_rate1_drop,0,1.0,100,257,3,209,257,True,True,0,True
+s1_rate1_nodrop,1,1.0,,260,0,157,260,True,True,0,True
+s1_rate5_nodrop,1,5.0,,260,0,157,260,True,True,0,True
+s1_rate1_drop,1,1.0,100,257,3,157,257,True,True,0,True

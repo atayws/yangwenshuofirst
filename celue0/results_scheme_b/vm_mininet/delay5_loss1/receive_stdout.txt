@@ -1,0 +1,18 @@
+{
+  "strategy_id": 0,
+  "packets_received": 208,
+  "decoded_bytes": 13,
+  "output_file": "/home/p4/yws-covert/celue0/results_scheme_b/vm_mininet/delay5_loss1/decoded_output.bin",
+  "success": true,
+  "decode_info": {
+    "scheme": "B-2byte-sync-tag",
+    "complete": false,
+    "total_bits": 104,
+    "decoded_bits": 103,
+    "unknown_bits": [
+      38
+    ],
+    "packets_seen": 208,
+    "tagged_packets": 208
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "success": false,
+  "all_paths_ready": false,
+  "parsed_int_reports": 319,
+  "metric_sample_counts": {
+    "0": 0,
+    "1": 319,
+    "2": 0
+  },
+  "state_window_ms": 18000.0,
+  "received_probe_packets": 0,
+  "probe_packets": [],
+  "int_reports": [
+    {
+      "hop_count": 2,
+      "original_protocol": 6,
+      "original_total_len": 60,
+      "trace_id": 1,
+      "hops": [
+        {
+          "swid": 2,
+          "port_ingress": 1,
+          "port_egress": 3,
+          "byte_ingress": 1495,
+          "byte_egress": 74,
+          "count_ingress": 14,
+          "count_egress": 1,
+          "curr_time_ingress": 2232828,
+          "curr_time_egress": 2232828,
+          "qdepth": 1
+        },
+        {
+          "swid": 1,
+          "port_ingress": 3,
+          "port_egress": 1,
+          "byte_ingress": 2803,
+          "byte_egress": 142,
+          "count_ingress": 21,
+          "count_egress": 1,
+          "curr_time_ingress": 2250533,
+          "curr_time_egress": 2251557,
+          "qdepth": 0
+        }
+      ]
+    },
+    {
+      "hop_count": 2,
+      "original_protocol": 6,
+      "original_total_len": 52,
+      "trace_id": 2,
+      "hops": [
+        {
+          "swid": 2,
+          "port_ingress": 1,
+          "port_egress": 3,
+          "byte_ingress": 1687,
+          "byte_egress": 214,
+          "count_ingress": 16,
+          "count_egress": 3,
+          "curr_time_ingress": 2269745,
+          "curr_time_egress": 2269745,
+          "qdepth": 1
+        },
+        {
+          "swid": 1,
+          "port_ingress": 3,
+          "port_egress": 1,
+          "byte_ingress": 2971,
+          "byte_egress": 358,
+          "count_ingress": 23,
+          "count_egress": 3,
+          "curr_time_ingress": 2287452,
+          "curr_time_egress": 2288490,
+          "qdepth": 0
+        }
+      ]
+    },
+    {
+      "hop_count": 2,
+      "original_protocol": 6,
+      "original_total_len": 1500,
+      "trace_id": 3,
+      "hops": [
+        {
+          "swid": 2,
+          "port_ingress": 1,
+          "port_egress": 3,
+          "byte_ingress": 18341,
+          "byte_egress": 15546,
+          "count_ingress": 27,
+          "count_egress": 15,
+          "curr_time_ingress": 2308634,
+          "curr_time_egress": 2308634,
+          "qdepth": 1
+        },
+        {
+          "swid": 1,
+          "port_ingress": 3,
+          "port_egress": 1,
+          "byte_ingress": 15568,
+          "byte_egress": 12804,
+          "count_ingress": 35,
+          "count_egress": 14,
+          "curr_time_ingress": 2326343,
+          "curr_time_egress": 2327350,
+          "qdepth": 0
+        }
+      ]
+    },
+    {
+      "hop_count": 2,
+      "original_protocol": 6,
+      "original_total_len": 1500,
+      "trace_id": 4,
+      "hops": [
+        {
+          "swid": 2,
+          "port_ingress": 1,
+          "port_egress": 3,
+          "byte_ingress": 44145,
+          "byte_egress": 44378,
+          "count_ingress": 45,
+          "count_egress": 35,
+          "curr_time_ingress": 2345669,
+          "curr_time_egress": 2345669,
+          "qdepth": 1
+        },
+        {
+          "swid": 1,
+          "port_ingress": 3,
+          "port_egress": 1,
+          "byte_ingress": 41466,
+          "byte_egress": 38750,
+          "count_ingress": 54,
+          "count_egress": 33,
+          "curr_time_ingress": 2363415,
+          "curr_time_egress": 2364515,
+          "qdepth": 0
+        }
+      ]
+    },
+    {
+      "hop_count": 2,
+      "original_protocol": 6,
+      "original_total_len": 1500,
+      "trace_id": 5,
+      "hops": [
+        {
+          "swid": 2,
+          "port_ingress": 1,
+          "port_egress": 3,
+          "byte_ingress": 57982,
+          "byte_egress": 58004,
+          "count_ingress": 55,
+          "count_egress": 44,
+          "curr_time_ingress": 2357751,
+          "curr_time_egress": 2357751,
+          "qdepth": 1
+        },
+        {
+          "swid": 1,
+          "port_ingress": 3,
+          "port_egress": 1,
+          "byte_ingress": 53672,
+          "byte_egress": 51004,
+          "count_ingress": 63,
+          "count_egress": 42,
+          "curr_time_ingress": 2375416,
+          "curr_time_egress": 2376602,
+          "qdepth": 0
+        }
+      ]
+    }
+  ],
+  "raw_metrics": {
+    "1": {
+      "source_swid": 2,
+      "sink_swid": 1,
+      "source_egress_port": 3,
+      "sink_ingress_port": 3,
+      "delay_us": 17587.0,
+      "jitter_us": 137.0,
+      "loss_rate": 0.0,
+      "bw_bytes_per_s": 138234.05154203632,
+      "qdepth": 1,
+      "interval_us": 11835.0,
+      "sent_delta": 1,
+      "recv_delta": 1,
+      "byte_delta": 1636,
+      "sequence_id": 351,
+      "sequence_gap": 1
+    }
+  },
+  "path_states": {
+    "1": {
+      "path_id": 1,
+      "delay_ms": 17.68939,
+      "jitter_ms": 0.16359962683331541,
+      "loss_rate": 0.04,
+      "bw_utilization": 0.12254063976400455,
+      "qdepth_avg": 1.0,
+      "timestamp": 1782052563.9908395,
+      "sample_count": 100
+    }
+  }
+}

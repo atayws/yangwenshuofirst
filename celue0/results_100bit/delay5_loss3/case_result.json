@@ -1,0 +1,24 @@
+{
+  "case": "delay5_loss3",
+  "strategy_id": 0,
+  "delay_ms": 5,
+  "loss_percent": 3,
+  "payload_bits": 104,
+  "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+  "decoded_bits": "",
+  "input_hex": "bda9e74ed50728475adaba196d",
+  "decoded_hex": "",
+  "expected_packets": 209,
+  "packets_received": 204,
+  "receiver_success": false,
+  "match": false,
+  "send_elapsed_s": 12.575947761535645,
+  "send_stdout": "sent=209\n",
+  "receive_summary": {
+    "strategy_id": 0,
+    "packets_received": 204,
+    "decoded_bytes": 0,
+    "output_file": "/home/p4/yws-covert/celue0/results_100bit/delay5_loss3/decoded_output.bin",
+    "success": false
+  }
+}

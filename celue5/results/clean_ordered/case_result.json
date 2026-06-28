@@ -1,0 +1,29 @@
+{
+  "case": "clean_ordered",
+  "note": "理想顺序接收，验证基本编解码。",
+  "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+  "input_bytes": 13,
+  "expected_packets": 252,
+  "received_packets": 252,
+  "packet_loss_count": 0,
+  "reordered": false,
+  "dropped_fragments": [],
+  "tampered_windows": [],
+  "decoded_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+  "decode_success": true,
+  "complete": true,
+  "exact_match": true,
+  "bit_matches": 100,
+  "bit_total": 100,
+  "bit_match_ratio": 1.0,
+  "decode_info": {
+    "scheme": "strategy5-path-sequence-v1",
+    "complete": true,
+    "decoded_bytes": 13,
+    "total_windows": 84,
+    "used_windows": 84,
+    "unknown_symbols": [],
+    "bits_per_window": 2,
+    "packets_per_window": 3
+  }
+}

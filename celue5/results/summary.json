@@ -1,0 +1,228 @@
+{
+  "scheme": "strategy5-path-sequence-offline-matrix",
+  "random_seed": 20260626,
+  "bit_count": 100,
+  "input_bits_file": "/home/p4/yws-covert/celue5/input_bits.txt",
+  "input_payload_file": "/home/p4/yws-covert/celue5/input_payload.bin",
+  "packets_generated": 252,
+  "bits_per_window": 2,
+  "packets_per_window": 3,
+  "path_mapping": {
+    "00": [
+      0,
+      1,
+      2
+    ],
+    "01": [
+      0,
+      2,
+      1
+    ],
+    "10": [
+      1,
+      0,
+      2
+    ],
+    "11": [
+      1,
+      2,
+      0
+    ]
+  },
+  "results": [
+    {
+      "case": "clean_ordered",
+      "note": "理想顺序接收，验证基本编解码。",
+      "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "input_bytes": 13,
+      "expected_packets": 252,
+      "received_packets": 252,
+      "packet_loss_count": 0,
+      "reordered": false,
+      "dropped_fragments": [],
+      "tampered_windows": [],
+      "decoded_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "decode_success": true,
+      "complete": true,
+      "exact_match": true,
+      "bit_matches": 100,
+      "bit_total": 100,
+      "bit_match_ratio": 1.0,
+      "decode_info": {
+        "scheme": "strategy5-path-sequence-v1",
+        "complete": true,
+        "decoded_bytes": 13,
+        "total_windows": 84,
+        "used_windows": 84,
+        "unknown_symbols": [],
+        "bits_per_window": 2,
+        "packets_per_window": 3
+      }
+    },
+    {
+      "case": "reordered_by_fragment",
+      "note": "全局乱序接收，依靠 fragment_id 恢复窗口顺序。",
+      "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "input_bytes": 13,
+      "expected_packets": 252,
+      "received_packets": 252,
+      "packet_loss_count": 0,
+      "reordered": true,
+      "dropped_fragments": [],
+      "tampered_windows": [],
+      "decoded_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "decode_success": true,
+      "complete": true,
+      "exact_match": true,
+      "bit_matches": 100,
+      "bit_total": 100,
+      "bit_match_ratio": 1.0,
+      "decode_info": {
+        "scheme": "strategy5-path-sequence-v1",
+        "complete": true,
+        "decoded_bytes": 13,
+        "total_windows": 84,
+        "used_windows": 84,
+        "unknown_symbols": [],
+        "bits_per_window": 2,
+        "packets_per_window": 3
+      }
+    },
+    {
+      "case": "one_data_packet_loss",
+      "note": "数据区丢 1 个承载包，应只标记局部 unknown，不让后续错位。",
+      "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "input_bytes": 13,
+      "expected_packets": 252,
+      "received_packets": 251,
+      "packet_loss_count": 1,
+      "reordered": false,
+      "dropped_fragments": [
+        103
+      ],
+      "tampered_windows": [],
+      "decoded_bits": "0000000100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "decode_success": true,
+      "complete": false,
+      "exact_match": false,
+      "bit_matches": 99,
+      "bit_total": 100,
+      "bit_match_ratio": 0.99,
+      "decode_info": {
+        "scheme": "strategy5-path-sequence-v1",
+        "complete": false,
+        "reason": "可用路径窗口不足或存在未知符号",
+        "decoded_bytes": 13,
+        "total_windows": 84,
+        "unknown_symbols": [
+          34
+        ],
+        "bits_per_window": 2,
+        "packets_per_window": 3
+      }
+    },
+    {
+      "case": "sparse_data_packet_loss",
+      "note": "数据区稀疏丢 3 个承载包，验证局部误码不会扩散。",
+      "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "input_bytes": 13,
+      "expected_packets": 252,
+      "received_packets": 249,
+      "packet_loss_count": 3,
+      "reordered": false,
+      "dropped_fragments": [
+        102,
+        106,
+        119
+      ],
+      "tampered_windows": [],
+      "decoded_bits": "0000000000000000110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "decode_success": true,
+      "complete": false,
+      "exact_match": false,
+      "bit_matches": 97,
+      "bit_total": 100,
+      "bit_match_ratio": 0.97,
+      "decode_info": {
+        "scheme": "strategy5-path-sequence-v1",
+        "complete": false,
+        "reason": "可用路径窗口不足或存在未知符号",
+        "decoded_bytes": 13,
+        "total_windows": 84,
+        "unknown_symbols": [
+          34,
+          35,
+          39
+        ],
+        "bits_per_window": 2,
+        "packets_per_window": 3
+      }
+    },
+    {
+      "case": "invalid_data_permutation",
+      "note": "一个数据窗口路径排列异常，应产生局部 unknown。",
+      "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "input_bytes": 13,
+      "expected_packets": 252,
+      "received_packets": 252,
+      "packet_loss_count": 0,
+      "reordered": false,
+      "dropped_fragments": [],
+      "tampered_windows": [
+        34
+      ],
+      "decoded_bits": "0000000100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "decode_success": true,
+      "complete": false,
+      "exact_match": false,
+      "bit_matches": 99,
+      "bit_total": 100,
+      "bit_match_ratio": 0.99,
+      "decode_info": {
+        "scheme": "strategy5-path-sequence-v1",
+        "complete": false,
+        "reason": "可用路径窗口不足或存在未知符号",
+        "decoded_bytes": 13,
+        "total_windows": 84,
+        "unknown_symbols": [
+          34
+        ],
+        "bits_per_window": 2,
+        "packets_per_window": 3
+      }
+    },
+    {
+      "case": "header_packet_loss",
+      "note": "帧头区丢包，当前方案应拒绝输出完整明文。",
+      "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+      "input_bytes": 13,
+      "expected_packets": 252,
+      "received_packets": 251,
+      "packet_loss_count": 1,
+      "reordered": false,
+      "dropped_fragments": [
+        1
+      ],
+      "tampered_windows": [],
+      "decoded_bits": "",
+      "decode_success": false,
+      "complete": false,
+      "exact_match": false,
+      "bit_matches": 0,
+      "bit_total": 100,
+      "bit_match_ratio": 0.0,
+      "decode_info": {
+        "scheme": "strategy5-path-sequence-v1",
+        "complete": false,
+        "reason": "帧头 magic 错误",
+        "decoded_bytes": 0,
+        "total_windows": 84,
+        "unknown_symbols": [
+          0
+        ],
+        "bits_per_window": 2,
+        "packets_per_window": 3
+      }
+    }
+  ]
+}

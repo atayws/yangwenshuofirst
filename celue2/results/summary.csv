@@ -1,0 +1,8 @@
+case,delay_ms,loss_pct,expected_packets,packets_received,estimated_loss_pct,success,hidden_match,decoded_bytes
+delay5_loss0,5,0,576,576,0.0,True,True,64
+delay20_loss0,20,0,576,576,0.0,True,True,64
+delay50_loss0,50,0,576,576,0.0,True,True,64
+delay5_loss5,5,5,576,547,5.03,True,True,64
+delay5_loss10,5,10,576,523,9.2,True,True,64
+delay5_loss20,5,20,576,435,24.48,True,True,64
+delay5_loss30,5,30,576,393,31.77,True,True,64

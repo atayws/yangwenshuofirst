@@ -1,0 +1,9 @@
+case,strategy_id,business_sent_to_proxy,business_dropped_before_proxy,tag_drop_every,required_tagged_packets,tagged_packets_planned,tagged_packets_received,dropped_tagged_packets,forwarded_business_packets,decode_success,complete,hidden_match,bit_accuracy,unknown_count,sender_complete
+s0_nodrop,0,280,0,0,209,209,209,0,280,True,True,True,1.0,0,True
+s0_business_drop100,0,277,3,0,209,209,209,0,277,True,True,True,1.0,0,True
+s0_tag_drop100,0,280,0,100,209,209,207,2,278,True,False,False,0.9808,4,True
+s0_tag_drop50,0,280,0,50,209,209,205,4,276,True,False,False,0.9615,8,True
+s1_nodrop,1,280,0,0,157,157,157,0,280,True,True,True,1.0,0,True
+s1_business_drop100,1,277,3,0,157,157,157,0,277,True,True,True,1.0,0,True
+s1_tag_drop100,1,280,0,100,157,157,156,1,279,True,False,False,0.9904,2,True
+s1_tag_drop50,1,280,0,50,157,157,154,3,277,True,False,False,0.9423,8,True

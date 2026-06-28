@@ -1,0 +1,113 @@
+{
+  "case": "three_p2_loss20_weighted",
+  "note": "三路径加权，降低较差 path2 使用比例",
+  "weights": [
+    2,
+    2,
+    1
+  ],
+  "delays_ms": [
+    5,
+    15,
+    30
+  ],
+  "loss_pct": [
+    0,
+    0,
+    20
+  ],
+  "port": 50242,
+  "strategy4_k": 4,
+  "strategy4_num_output": 16,
+  "expected_packets": 256,
+  "packets_received": 243,
+  "estimated_packet_loss_pct": 5.08,
+  "decoded_bytes": 23,
+  "success": true,
+  "hidden_match": true,
+  "input_md5": "042ceca3f64889973871171b6a9f414f",
+  "decoded_md5": "042ceca3f64889973871171b6a9f414f",
+  "decode_info": {
+    "scheme": "strategy4-ipid-fountain-v1",
+    "complete": true,
+    "candidate_packets": 243,
+    "decoded_frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "expected_frames": 16,
+    "failed_frames": [],
+    "k": 4,
+    "num_output": 16,
+    "decoded_bytes": 23
+  },
+  "ip_id_sample_hex": [
+    "0xc007",
+    "0xc017",
+    "0xc023",
+    "0xc03e",
+    "0xc056",
+    "0xc04e",
+    "0xc067",
+    "0xc076",
+    "0xc087",
+    "0xc0ad",
+    "0xc0b8",
+    "0xc0c3"
+  ],
+  "iperf_ok": true,
+  "iperf_client_tail": "[  1] 11.0000-12.0000 sec   128 KBytes  1.05 Mbits/sec\n[  1] 12.0000-13.0000 sec   129 KBytes  1.06 Mbits/sec\n[  1] 0.0000-13.0210 sec  1.63 MBytes  1.05 Mbits/sec\n[  1] Sent 1164 datagrams\n[  1] Server Report:\n[ ID] Interval       Transfer     Bandwidth        Jitter   Lost/Total Datagrams\n[  1] 0.0000-13.0309 sec  1.53 MBytes   986 Kbits/sec   4.476 ms 70/1163 (6%)\n[  1] 0.0000-13.0309 sec  56 datagrams received out-of-order",
+  "int_success": true,
+  "int_parsed_reports": 1105,
+  "int_metric_sample_counts": {
+    "0": 580,
+    "1": 292,
+    "2": 233
+  },
+  "int_path_states": {
+    "0": {
+      "path_id": 0,
+      "delay_ms": 6.166659999999999,
+      "jitter_ms": 0.17492159500759194,
+      "loss_rate": 0.0,
+      "bw_utilization": 0.10831925075820938,
+      "qdepth_avg": 0.34,
+      "timestamp": 1782439500.3506427,
+      "sample_count": 100
+    },
+    "1": {
+      "path_id": 1,
+      "delay_ms": 16.16549,
+      "jitter_ms": 0.12912648798755422,
+      "loss_rate": 0.0,
+      "bw_utilization": 0.06364524860551324,
+      "qdepth_avg": 0.33,
+      "timestamp": 1782439500.3507085,
+      "sample_count": 100
+    },
+    "2": {
+      "path_id": 2,
+      "delay_ms": 31.19524,
+      "jitter_ms": 0.2701919362231225,
+      "loss_rate": 0.11499999999999998,
+      "bw_utilization": 0.06215931306745064,
+      "qdepth_avg": 0.31,
+      "timestamp": 1782439500.3507557,
+      "sample_count": 100
+    }
+  }
+}

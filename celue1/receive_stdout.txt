@@ -1,0 +1,7 @@
+{
+  "strategy_id": 1,
+  "packets_received": 13,
+  "decoded_bytes": 1,
+  "output_file": "/home/p4/yws-covert/celue1/decoded_output.bin",
+  "success": true
+}

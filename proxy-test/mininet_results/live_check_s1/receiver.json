@@ -1,0 +1,21 @@
+{
+  "mode": "receiver",
+  "strategy_id": 1,
+  "packets_received": 595,
+  "tagged_packets": 157,
+  "plain_packets": 438,
+  "forwarded_business_packets": 595,
+  "hidden_decoded_bytes": 13,
+  "hidden_output": "proxy-test/mininet_results/live_check_s1/hidden_out.bin",
+  "success": true,
+  "decode_info": {
+    "scheme": "B-2byte-sync-tag",
+    "complete": true,
+    "total_symbols": 52,
+    "decoded_symbols": 52,
+    "unknown_symbols": [],
+    "unknown_bits": [],
+    "packets_seen": 157,
+    "tagged_packets": 157
+  }
+}

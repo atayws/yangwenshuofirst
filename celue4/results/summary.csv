@@ -1,0 +1,7 @@
+case,weights,delay_ms,loss_pct,expected_packets,packets_received,estimated_loss_pct,success,hidden_match,iperf_ok,int_success,int_reports,decoded_bytes
+three_equal_clean,1-1-1,5-15-30,0-0-0,256,256,0.0,True,True,True,True,1166,23
+three_p2_loss20_equal,1-1-1,5-15-30,0-0-20,256,236,7.81,True,True,True,True,1103,23
+three_p2_loss20_weighted,2-2-1,5-15-30,0-0-20,256,243,5.08,True,True,True,True,1105,23
+two_path_clean,1-1-0,5-15-30,0-0-0,256,256,0.0,True,True,True,True,1164,23
+two_path_p1_loss30,1-1-0,5-15-30,0-30-0,256,224,12.5,True,True,True,True,1080,23
+three_all_loss10,1-1-1,5-15-30,10-10-10,256,229,10.55,True,True,True,True,1057,23

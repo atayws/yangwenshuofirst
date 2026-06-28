@@ -1,0 +1,33 @@
+{
+  "case": "header_packet_loss",
+  "note": "帧头区丢包，当前方案应拒绝输出完整明文。",
+  "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+  "input_bytes": 13,
+  "expected_packets": 252,
+  "received_packets": 251,
+  "packet_loss_count": 1,
+  "reordered": false,
+  "dropped_fragments": [
+    1
+  ],
+  "tampered_windows": [],
+  "decoded_bits": "",
+  "decode_success": false,
+  "complete": false,
+  "exact_match": false,
+  "bit_matches": 0,
+  "bit_total": 100,
+  "bit_match_ratio": 0.0,
+  "decode_info": {
+    "scheme": "strategy5-path-sequence-v1",
+    "complete": false,
+    "reason": "帧头 magic 错误",
+    "decoded_bytes": 0,
+    "total_windows": 84,
+    "unknown_symbols": [
+      0
+    ],
+    "bits_per_window": 2,
+    "packets_per_window": 3
+  }
+}

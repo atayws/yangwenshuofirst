@@ -1,0 +1,45 @@
+{
+  "strategy_id": 2,
+  "packets_received": 523,
+  "decoded_bytes": 64,
+  "output_file": "celue2/results/delay5_loss10/decoded_output.bin",
+  "success": true,
+  "decode_info": {
+    "scheme": "strategy2-ipid-block-mod-nibble-v3",
+    "complete": true,
+    "decoded_blocks": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "failed_blocks": [],
+    "recovered_by_parity": {},
+    "candidate_blocks": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "auth_failed_blocks": 0,
+    "decoded_bytes": 64,
+    "repeat_count": 3,
+    "note": "没有 fragment_id 元数据时，block_mod 支持 16 个块内的乱序重组；当前中期测试数据规模在该范围内。"
+  }
+}

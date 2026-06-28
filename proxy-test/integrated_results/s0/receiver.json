@@ -1,0 +1,20 @@
+{
+  "mode": "receiver",
+  "strategy_id": 0,
+  "packets_received": 674,
+  "tagged_packets": 209,
+  "plain_packets": 465,
+  "forwarded_business_packets": 674,
+  "hidden_decoded_bytes": 13,
+  "hidden_output": "proxy-test/integrated_results/s0/hidden_out.bin",
+  "success": true,
+  "decode_info": {
+    "scheme": "B-2byte-sync-tag",
+    "complete": true,
+    "total_bits": 104,
+    "decoded_bits": 104,
+    "unknown_bits": [],
+    "packets_seen": 209,
+    "tagged_packets": 209
+  }
+}

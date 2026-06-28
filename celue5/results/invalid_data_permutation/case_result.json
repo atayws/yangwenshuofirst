@@ -1,0 +1,33 @@
+{
+  "case": "invalid_data_permutation",
+  "note": "一个数据窗口路径排列异常，应产生局部 unknown。",
+  "input_bits": "0000100100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+  "input_bytes": 13,
+  "expected_packets": 252,
+  "received_packets": 252,
+  "packet_loss_count": 0,
+  "reordered": false,
+  "dropped_fragments": [],
+  "tampered_windows": [
+    34
+  ],
+  "decoded_bits": "0000000100000010110010100111111111110001000011111011000011010100001000001100101101000111111100011010",
+  "decode_success": true,
+  "complete": false,
+  "exact_match": false,
+  "bit_matches": 99,
+  "bit_total": 100,
+  "bit_match_ratio": 0.99,
+  "decode_info": {
+    "scheme": "strategy5-path-sequence-v1",
+    "complete": false,
+    "reason": "可用路径窗口不足或存在未知符号",
+    "decoded_bytes": 13,
+    "total_windows": 84,
+    "unknown_symbols": [
+      34
+    ],
+    "bits_per_window": 2,
+    "packets_per_window": 3
+  }
+}

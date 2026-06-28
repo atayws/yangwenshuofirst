@@ -1,0 +1,71 @@
+{
+  "success": true,
+  "strategy_id": 5,
+  "strategy_name": "path_sequence",
+  "input_file": "experiments/data/input_message.txt",
+  "output_file": "experiments/results/decoded_s5.bin",
+  "trace_file": "experiments/results/trace_s5.csv",
+  "pcap_file": "experiments/results/packets_s5.pcap",
+  "pcap_error": null,
+  "input_bytes": 29,
+  "decoded_bytes": 29,
+  "packets_generated": 444,
+  "first_packets": [
+    {
+      "fragment_id": 0,
+      "path_id": 0,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 53670
+    },
+    {
+      "fragment_id": 1,
+      "path_id": 2,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 56100
+    },
+    {
+      "fragment_id": 2,
+      "path_id": 1,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 55253
+    },
+    {
+      "fragment_id": 3,
+      "path_id": 0,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 53669
+    },
+    {
+      "fragment_id": 4,
+      "path_id": 2,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 56097
+    },
+    {
+      "fragment_id": 5,
+      "path_id": 1,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 55250
+    },
+    {
+      "fragment_id": 6,
+      "path_id": 0,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 53664
+    },
+    {
+      "fragment_id": 7,
+      "path_id": 1,
+      "send_delay_ms": 0.0,
+      "target_packet_length": null,
+      "ip_id_field": 55248
+    }
+  ]
+}

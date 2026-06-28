@@ -1,0 +1,24 @@
+[
+  {
+    "case": "live_check_s0",
+    "strategy_id": 0,
+    "business_packets": 595,
+    "forwarded_business_packets": 595,
+    "tagged_packets": 209,
+    "covert_packets_required": 209,
+    "decode_complete": true,
+    "hidden_match": true,
+    "unknown_bits": []
+  },
+  {
+    "case": "live_check_s1",
+    "strategy_id": 1,
+    "business_packets": 595,
+    "forwarded_business_packets": 595,
+    "tagged_packets": 157,
+    "covert_packets_required": 157,
+    "decode_complete": true,
+    "hidden_match": true,
+    "unknown_bits": []
+  }
+]

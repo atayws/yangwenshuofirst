@@ -1,0 +1,11 @@
+{
+  "mode": "sender",
+  "strategy_id": 1,
+  "hidden_bytes": 13,
+  "covert_packets_required": 157,
+  "business_packets_received": 260,
+  "tagged_packets_sent": 157,
+  "plain_packets_sent": 103,
+  "complete": true,
+  "duration_s": 11.867
+}

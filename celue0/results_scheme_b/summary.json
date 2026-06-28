@@ -1,0 +1,194 @@
+[
+  {
+    "case": "delay5_loss0",
+    "strategy_id": 0,
+    "delay_ms": 5,
+    "loss_rate": 0.0,
+    "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "decoded_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "exact_match": true,
+    "bit_accuracy": 1.0,
+    "bit_correct": 104,
+    "bit_total": 104,
+    "expected_packets": 209,
+    "received_packets": 209,
+    "dropped_fragments": [],
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": true,
+      "total_bits": 104,
+      "decoded_bits": 104,
+      "unknown_bits": [],
+      "packets_seen": 209,
+      "tagged_packets": 209
+    }
+  },
+  {
+    "case": "delay20_loss0",
+    "strategy_id": 0,
+    "delay_ms": 20,
+    "loss_rate": 0.0,
+    "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "decoded_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "exact_match": true,
+    "bit_accuracy": 1.0,
+    "bit_correct": 104,
+    "bit_total": 104,
+    "expected_packets": 209,
+    "received_packets": 209,
+    "dropped_fragments": [],
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": true,
+      "total_bits": 104,
+      "decoded_bits": 104,
+      "unknown_bits": [],
+      "packets_seen": 209,
+      "tagged_packets": 209
+    }
+  },
+  {
+    "case": "delay50_loss0",
+    "strategy_id": 0,
+    "delay_ms": 50,
+    "loss_rate": 0.0,
+    "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "decoded_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "exact_match": true,
+    "bit_accuracy": 1.0,
+    "bit_correct": 104,
+    "bit_total": 104,
+    "expected_packets": 209,
+    "received_packets": 209,
+    "dropped_fragments": [],
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": true,
+      "total_bits": 104,
+      "decoded_bits": 104,
+      "unknown_bits": [],
+      "packets_seen": 209,
+      "tagged_packets": 209
+    }
+  },
+  {
+    "case": "delay5_loss1",
+    "strategy_id": 0,
+    "delay_ms": 5,
+    "loss_rate": 0.01,
+    "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "decoded_bits": "10111101101010011110011101001110110101010000011100101000010000110101101011011010101110100000100101101101",
+    "exact_match": false,
+    "bit_accuracy": 0.9808,
+    "bit_correct": 102,
+    "bit_total": 104,
+    "expected_packets": 209,
+    "received_packets": 206,
+    "dropped_fragments": [
+      89,
+      123,
+      183
+    ],
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": false,
+      "total_bits": 104,
+      "decoded_bits": 101,
+      "unknown_bits": [
+        44,
+        61,
+        91
+      ],
+      "packets_seen": 206,
+      "tagged_packets": 206
+    }
+  },
+  {
+    "case": "delay20_loss1",
+    "strategy_id": 0,
+    "delay_ms": 20,
+    "loss_rate": 0.01,
+    "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "decoded_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "exact_match": true,
+    "bit_accuracy": 1.0,
+    "bit_correct": 104,
+    "bit_total": 104,
+    "expected_packets": 209,
+    "received_packets": 208,
+    "dropped_fragments": [
+      99
+    ],
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": false,
+      "total_bits": 104,
+      "decoded_bits": 103,
+      "unknown_bits": [
+        49
+      ],
+      "packets_seen": 208,
+      "tagged_packets": 208
+    }
+  },
+  {
+    "case": "delay5_loss3",
+    "strategy_id": 0,
+    "delay_ms": 5,
+    "loss_rate": 0.03,
+    "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+    "decoded_bits": "10011101101010011110011100001110110101010000011100001000010000000101101011011010000010100001100101101101",
+    "exact_match": false,
+    "bit_accuracy": 0.9135,
+    "bit_correct": 95,
+    "bit_total": 104,
+    "expected_packets": 209,
+    "received_packets": 199,
+    "dropped_fragments": [
+      4,
+      28,
+      39,
+      51,
+      102,
+      122,
+      126,
+      160,
+      166,
+      176
+    ],
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": false,
+      "total_bits": 104,
+      "decoded_bits": 86,
+      "unknown_bits": [
+        1,
+        2,
+        13,
+        14,
+        19,
+        25,
+        50,
+        51,
+        60,
+        61,
+        62,
+        63,
+        79,
+        80,
+        82,
+        83,
+        87,
+        88
+      ],
+      "packets_seen": 199,
+      "tagged_packets": 199
+    }
+  }
+]

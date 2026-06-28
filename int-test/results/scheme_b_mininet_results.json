@@ -1,0 +1,100 @@
+[
+  {
+    "case": "delay5_loss0",
+    "strategy_id": 0,
+    "delay_ms": 5,
+    "loss_rate": 0.0,
+    "expected_packets": 209,
+    "received_packets": 209,
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": true,
+      "total_bits": 104,
+      "decoded_bits": 104,
+      "unknown_bits": [],
+      "packets_seen": 209,
+      "tagged_packets": 209
+    },
+    "output_file": "/home/p4/yws-covert/celue0/results_scheme_b/vm_mininet/delay5_loss0/decoded_output.bin",
+    "summary_file": "/home/p4/yws-covert/celue0/results_scheme_b/vm_mininet/delay5_loss0/receive_summary.json"
+  },
+  {
+    "case": "delay5_loss1",
+    "strategy_id": 0,
+    "delay_ms": 5,
+    "loss_rate": 1.0,
+    "expected_packets": 208,
+    "received_packets": 208,
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": false,
+      "total_bits": 104,
+      "decoded_bits": 103,
+      "unknown_bits": [
+        38
+      ],
+      "packets_seen": 208,
+      "tagged_packets": 208
+    },
+    "output_file": "/home/p4/yws-covert/celue0/results_scheme_b/vm_mininet/delay5_loss1/decoded_output.bin",
+    "summary_file": "/home/p4/yws-covert/celue0/results_scheme_b/vm_mininet/delay5_loss1/receive_summary.json"
+  },
+  {
+    "case": "delay5_loss0",
+    "strategy_id": 1,
+    "delay_ms": 5,
+    "loss_rate": 0.0,
+    "expected_packets": 157,
+    "received_packets": 157,
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": true,
+      "total_symbols": 52,
+      "decoded_symbols": 52,
+      "unknown_symbols": [],
+      "unknown_bits": [],
+      "packets_seen": 157,
+      "tagged_packets": 157
+    },
+    "output_file": "/home/p4/yws-covert/celue1/results_scheme_b/vm_mininet/delay5_loss0/decoded_output.bin",
+    "summary_file": "/home/p4/yws-covert/celue1/results_scheme_b/vm_mininet/delay5_loss0/receive_summary.json"
+  },
+  {
+    "case": "delay5_loss1",
+    "strategy_id": 1,
+    "delay_ms": 5,
+    "loss_rate": 1.0,
+    "expected_packets": 153,
+    "received_packets": 153,
+    "decode_success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": false,
+      "total_symbols": 52,
+      "decoded_symbols": 48,
+      "unknown_symbols": [
+        15,
+        28,
+        42,
+        48
+      ],
+      "unknown_bits": [
+        30,
+        31,
+        56,
+        57,
+        84,
+        85,
+        96,
+        97
+      ],
+      "packets_seen": 153,
+      "tagged_packets": 153
+    },
+    "output_file": "/home/p4/yws-covert/celue1/results_scheme_b/vm_mininet/delay5_loss1/decoded_output.bin",
+    "summary_file": "/home/p4/yws-covert/celue1/results_scheme_b/vm_mininet/delay5_loss1/receive_summary.json"
+  }
+]

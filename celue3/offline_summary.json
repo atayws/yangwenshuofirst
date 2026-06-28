@@ -1,0 +1,22 @@
+{
+  "strategy_id": 3,
+  "scheme": "strategy3-statistical-length-v2",
+  "input_bytes": 28,
+  "packets_generated": 336,
+  "repeat_count": 3,
+  "target_length_min": 108,
+  "target_length_max": 1346,
+  "success": true,
+  "decode_info": {
+    "scheme": "strategy3-statistical-length-v2",
+    "complete": true,
+    "total_symbols": 112,
+    "decoded_symbols": 112,
+    "missing_symbols": [],
+    "low_confidence_symbols": [],
+    "packets_seen": 336,
+    "tagged_packets": 336,
+    "unclassified_packets": 0,
+    "repeat_count": 3
+  }
+}

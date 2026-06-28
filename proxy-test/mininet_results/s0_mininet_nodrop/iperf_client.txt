@@ -1,0 +1,35 @@
+------------------------------------------------------------
+Client connecting to 127.0.0.1, UDP port 6000
+Sending 1470 byte datagrams, IPG target: 22968.75 us (kalman adjust)
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 127.0.0.1 port 60889 connected with 127.0.0.1 port 6000
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-1.0000 sec  64.6 KBytes   529 Kbits/sec
+[  1] 1.0000-2.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 2.0000-3.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 3.0000-4.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 4.0000-5.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 5.0000-6.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 6.0000-7.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 7.0000-8.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 8.0000-9.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 9.0000-10.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 10.0000-11.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 11.0000-12.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 12.0000-13.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 13.0000-14.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 14.0000-15.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 15.0000-16.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 16.0000-17.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 17.0000-18.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 18.0000-19.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 19.0000-20.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 20.0000-21.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 21.0000-22.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 22.0000-23.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 23.0000-24.0000 sec  61.7 KBytes   506 Kbits/sec
+[  1] 24.0000-25.0000 sec  63.2 KBytes   517 Kbits/sec
+[  1] 0.0000-25.0361 sec  1.53 MBytes   513 Kbits/sec
+[  1] Sent 1093 datagrams
+[  3] WARNING: did not receive ack of last datagram after 10 tries.

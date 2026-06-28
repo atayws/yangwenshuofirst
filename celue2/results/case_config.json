@@ -1,0 +1,56 @@
+[
+  {
+    "name": "delay5_loss0",
+    "delay_ms": 5,
+    "loss_pct": 0,
+    "dport": 50200
+  },
+  {
+    "name": "delay20_loss0",
+    "delay_ms": 20,
+    "loss_pct": 0,
+    "dport": 50201
+  },
+  {
+    "name": "delay50_loss0",
+    "delay_ms": 50,
+    "loss_pct": 0,
+    "dport": 50202
+  },
+  {
+    "name": "delay5_loss5",
+    "delay_ms": 5,
+    "loss_pct": 5,
+    "dport": 50203
+  },
+  {
+    "name": "delay5_loss10",
+    "delay_ms": 5,
+    "loss_pct": 10,
+    "dport": 50204
+  },
+  {
+    "name": "delay5_loss15",
+    "delay_ms": 5,
+    "loss_pct": 15,
+    "dport": 50205
+  },
+  {
+    "name": "delay5_loss20",
+    "delay_ms": 5,
+    "loss_pct": 20,
+    "dport": 50206
+  },
+  {
+    "name": "delay5_loss30",
+    "delay_ms": 5,
+    "loss_pct": 30,
+    "dport": 50207
+  },
+  {
+    "name": "delay5_loss40",
+    "delay_ms": 5,
+    "loss_pct": 40,
+    "dport": 50208
+  }
+]

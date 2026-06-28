@@ -1,0 +1,7 @@
+case,delay_ms,loss_percent,payload_bits,expected_packets,packets_received,receiver_success,match,send_elapsed_s
+delay5_loss0,5,0,104,209,209,True,True,12.581240177154541
+delay20_loss0,20,0,104,209,209,True,True,12.578948020935059
+delay50_loss0,50,0,104,209,209,True,True,12.588713884353638
+delay5_loss1,5,1,104,209,207,False,False,12.577215909957886
+delay20_loss1,20,1,104,209,208,False,False,12.566040754318237
+delay5_loss3,5,3,104,209,204,False,False,12.575947761535645

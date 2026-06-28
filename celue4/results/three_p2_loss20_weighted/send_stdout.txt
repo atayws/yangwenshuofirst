@@ -1,0 +1,2 @@
+strategy=4 packets=256 input_bytes=23 path_counts={0: 103, 1: 102, 2: 51}
+send_done=true

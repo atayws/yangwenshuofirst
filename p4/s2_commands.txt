@@ -1,0 +1,66 @@
+register_reset reg_byte_ingress
+register_reset reg_byte_egress
+register_reset reg_count_ingress
+register_reset reg_count_egress
+register_reset reg_last_time_ingress
+register_reset reg_last_time_egress
+register_reset reg_int_interval_us
+register_reset reg_next_sample_time
+register_reset reg_int_enabled
+register_reset reg_switch_id
+register_reset reg_int_terminal_swid
+register_reset reg_int_dst_filter
+register_reset reg_int_proto_filter
+register_reset reg_int_probe_path
+register_reset reg_int_seq_path
+register_reset reg_int_probe_mode
+register_reset reg_int_fixed_probe_path
+register_reset reg_path_mode
+register_reset reg_fixed_path
+register_reset reg_rr_burst_size
+register_reset reg_rr_counter
+register_reset reg_rr_current_path
+register_reset reg_wrr_weight0
+register_reset reg_wrr_weight1
+register_reset reg_wrr_weight2
+register_reset reg_wrr_counter
+register_reset reg_redundancy_mcast_grp
+
+table_set_default ipv4_lpm drop
+table_add ipv4_lpm set_egress 10.0.1.2/32 => 1
+table_add ipv4_lpm set_egress 10.0.1.1/32 => 2
+
+table_add path_to_port route_by_path 0 => 0 2 3 4
+table_add path_to_port route_by_path 1 => 1 2 3 4
+table_add path_to_port route_by_path 2 => 2 2 3 4
+
+mc_mgrp_create 100
+mc_node_create 0 2 3 4
+mc_node_associate 100 0
+
+mc_mgrp_create 101
+mc_node_create 0 1
+mc_node_create 1 1
+mc_node_associate 101 1
+mc_node_associate 101 2
+
+register_write reg_switch_id 0 2
+register_write reg_int_enabled 0 1
+register_write reg_int_interval_us 0 10000
+register_write reg_next_sample_time 0 0
+register_write reg_int_terminal_swid 0 1
+register_write reg_int_dst_filter 0 167772417
+register_write reg_int_proto_filter 0 0
+register_write reg_int_probe_path 0 0
+register_write reg_int_probe_mode 0 0
+register_write reg_int_fixed_probe_path 0 0
+register_write reg_path_mode 0 0
+register_write reg_fixed_path 0 0
+register_write reg_rr_burst_size 0 12
+register_write reg_rr_counter 0 0
+register_write reg_rr_current_path 0 0
+register_write reg_wrr_weight0 0 1
+register_write reg_wrr_weight1 0 1
+register_write reg_wrr_weight2 0 1
+register_write reg_wrr_counter 0 0
+register_write reg_redundancy_mcast_grp 0 100

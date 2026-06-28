@@ -1,0 +1,50 @@
+{
+  "strategy_id": 4,
+  "dport": 50241,
+  "packets_received": 236,
+  "decoded_bytes": 23,
+  "output_file": "celue4/results/three_p2_loss20_equal/decoded_output.bin",
+  "success": true,
+  "ip_id_sample_hex": [
+    "0xc007",
+    "0xc017",
+    "0xc03e",
+    "0xc023",
+    "0xc04e",
+    "0xc067",
+    "0xc056",
+    "0xc076",
+    "0xc095",
+    "0xc0ad",
+    "0xc0c3",
+    "0xc0b8"
+  ],
+  "decode_info": {
+    "scheme": "strategy4-ipid-fountain-v1",
+    "complete": true,
+    "candidate_packets": 236,
+    "decoded_frames": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "expected_frames": 16,
+    "failed_frames": [],
+    "k": 4,
+    "num_output": 16,
+    "decoded_bytes": 23
+  }
+}

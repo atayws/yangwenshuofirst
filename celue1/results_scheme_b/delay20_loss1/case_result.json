@@ -1,0 +1,33 @@
+{
+  "case": "delay20_loss1",
+  "strategy_id": 1,
+  "delay_ms": 20,
+  "loss_rate": 0.01,
+  "input_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101110100001100101101101",
+  "decoded_bits": "10111101101010011110011101001110110101010000011100101000010001110101101011011010101100100001100101101101",
+  "exact_match": false,
+  "bit_accuracy": 0.9904,
+  "bit_correct": 103,
+  "bit_total": 104,
+  "expected_packets": 157,
+  "received_packets": 156,
+  "dropped_fragments": [
+    127
+  ],
+  "decode_success": true,
+  "decode_info": {
+    "scheme": "B-2byte-sync-tag",
+    "complete": false,
+    "total_symbols": 52,
+    "decoded_symbols": 51,
+    "unknown_symbols": [
+      42
+    ],
+    "unknown_bits": [
+      84,
+      85
+    ],
+    "packets_seen": 156,
+    "tagged_packets": 156
+  }
+}

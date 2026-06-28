@@ -1,0 +1,22 @@
+{
+  "strategy_id": 1,
+  "strategy_name": "celue1",
+  "carrier_flow": "controlled UDP business flow, h1 -> h2, single path0",
+  "path_id": 0,
+  "input_bits": "00011001",
+  "decoded_bits": "00011001",
+  "input_hex": "19",
+  "decoded_hex": "19",
+  "expected_packets": 13,
+  "packets_received": 13,
+  "receiver_success": true,
+  "match": true,
+  "send_stdout": "sent=13\n",
+  "receive_summary": {
+    "strategy_id": 1,
+    "packets_received": 13,
+    "decoded_bytes": 1,
+    "output_file": "/home/p4/yws-covert/celue1/decoded_output.bin",
+    "success": true
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "case": "s0_mininet_tag_drop100",
+  "strategy_id": 0,
+  "tag_drop_every": 100,
+  "sender": {
+    "mode": "sender",
+    "strategy_id": 0,
+    "hidden_bytes": 13,
+    "covert_packets_required": 209,
+    "business_packets_received": 1292,
+    "tagged_packets_sent": 209,
+    "dropped_tagged_packets": 2,
+    "plain_packets_sent": 1083,
+    "complete": true,
+    "duration_s": 30.533
+  },
+  "receiver": {
+    "mode": "receiver",
+    "strategy_id": 0,
+    "packets_received": 1290,
+    "tagged_packets": 207,
+    "plain_packets": 1083,
+    "forwarded_business_packets": 1290,
+    "hidden_decoded_bytes": 13,
+    "hidden_output": "/home/p4/yws-covert/proxy-test/mininet_results/s0_mininet_tag_drop100/hidden_out.bin",
+    "success": true,
+    "decode_info": {
+      "scheme": "B-2byte-sync-tag",
+      "complete": false,
+      "total_bits": 104,
+      "decoded_bits": 100,
+      "unknown_bits": [
+        49,
+        50,
+        99,
+        100
+      ],
+      "packets_seen": 207,
+      "tagged_packets": 207
+    }
+  },
+  "hidden_match": false,
+  "bit_accuracy": 0.9808,
+  "bit_correct": 102,
+  "bit_total": 104,
+  "iperf_client_tail": [
+    "[  1] 23.0000-24.0000 sec  61.7 KBytes   506 Kbits/sec",
+    "[  1] 24.0000-25.0000 sec  63.2 KBytes   517 Kbits/sec",
+    "[  1] 0.0000-25.0361 sec  1.53 MBytes   513 Kbits/sec",
+    "[  1] Sent 1093 datagrams",
+    "[  3] WARNING: did not receive ack of last datagram after 10 tries."
+  ],
+  "iperf_server_tail": [
+    "[  1] 22.0000-23.0000 sec  63.2 KBytes   517 Kbits/sec   0.277 ms 0/44 (0%)",
+    "[  1] 23.0000-24.0000 sec  61.7 KBytes   506 Kbits/sec   0.128 ms 0/43 (0%)",
+    "[  1] 24.0000-25.0000 sec  63.2 KBytes   517 Kbits/sec   0.197 ms 0/44 (0%)",
+    "[  1] 0.0000-25.0359 sec  1.53 MBytes   512 Kbits/sec  14.400 ms 2/1092 (0.18%)",
+    "[  3] WARNING: ack of last datagram failed."
+  ]
+}

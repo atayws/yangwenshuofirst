@@ -1,0 +1,26 @@
+{
+  "mode": "receiver",
+  "strategy_id": 1,
+  "packets_received": 1291,
+  "tagged_packets": 156,
+  "plain_packets": 1135,
+  "forwarded_business_packets": 1291,
+  "hidden_decoded_bytes": 13,
+  "hidden_output": "/home/p4/yws-covert/proxy-test/mininet_results/s1_mininet_tag_drop100/hidden_out.bin",
+  "success": true,
+  "decode_info": {
+    "scheme": "B-2byte-sync-tag",
+    "complete": false,
+    "total_symbols": 52,
+    "decoded_symbols": 51,
+    "unknown_symbols": [
+      33
+    ],
+    "unknown_bits": [
+      66,
+      67
+    ],
+    "packets_seen": 156,
+    "tagged_packets": 156
+  }
+}

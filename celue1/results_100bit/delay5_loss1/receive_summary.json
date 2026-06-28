@@ -1,0 +1,7 @@
+{
+  "strategy_id": 1,
+  "packets_received": 155,
+  "decoded_bytes": 0,
+  "output_file": "/home/p4/yws-covert/celue1/results_100bit/delay5_loss1/decoded_output.bin",
+  "success": false
+}
