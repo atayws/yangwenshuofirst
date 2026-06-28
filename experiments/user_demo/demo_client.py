@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import socket
 from typing import Any, Dict
@@ -52,3 +53,27 @@ def short_plan(plan: list[dict]) -> str:
         paths = ",".join(str(path) for path in entry.get("paths", []))
         parts.append(f"S{entry.get('strategy_id')}@[{paths}]x{entry.get('weight', 1)}")
     return " | ".join(parts)
+
+
+def main() -> int:
+    """提供一个很小的命令行入口，便于手动查看或关闭拓扑服务。"""
+
+    parser = argparse.ArgumentParser(description="用户演示拓扑服务客户端")
+    parser.add_argument("action", choices=["status", "shutdown", "send"])
+    parser.add_argument("text", nargs="?", default="")
+    parser.add_argument("--host", default=DEFAULT_HOST)
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    args = parser.parse_args()
+
+    payload: Dict[str, Any] = {}
+    if args.action == "send":
+        if not args.text:
+            raise SystemExit("send 需要提供待发送文本")
+        payload["text"] = args.text
+    response = request(args.action, payload, host=args.host, port=args.port)
+    print(json.dumps(response, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

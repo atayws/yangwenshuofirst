@@ -132,6 +132,12 @@ def parse_args() -> argparse.Namespace:
     plan_sender.add_argument("--timing-repeat", type=int, default=2)
     plan_sender.add_argument("--path-sequence-repeat", type=int, default=2)
     plan_sender.add_argument("--strategy3-business-budget", type=int, default=260)
+    plan_sender.add_argument(
+        "--l2-send-gap-ms",
+        type=float,
+        default=1.0,
+        help="scapy-l2 连续发包的最小间隔，避免 BMv2 或抓包接收端被瞬时突发压爆。",
+    )
     plan_sender.add_argument("--summary", default="experiments/results/udp_proxy_plan_sender_summary.json")
 
     plan_receiver = subparsers.add_parser("plan-receiver", help="接收端计划代理：多策略识别 -> 业务流转发")
@@ -181,6 +187,16 @@ def load_proxy_plan(path: str) -> dict:
         segment.setdefault("remote_port", 6100 + index)
         segment.setdefault("paths", [0])
     return data
+
+
+def load_proxy_segment(path: str, segment_id: int) -> Tuple[dict, dict]:
+    """重新读取计划文件中的单个分段，用于 chunk 级动态重规划。"""
+
+    plan = load_proxy_plan(path)
+    for segment in plan["segments"]:
+        if int(segment.get("segment_id", -1)) == int(segment_id):
+            return plan, dict(segment)
+    raise ValueError(f"plan-file 中找不到 segment {segment_id}")
 
 
 def namespace_for_strategy(
@@ -282,9 +298,22 @@ def build_strategy_config(args: argparse.Namespace, hidden_len: Optional[int]) -
         config["expected_bytes"] = int(args.expected_bytes)
 
     if strategy_id == 0:
-        config.update({"short_gap_ms": 30, "long_gap_ms": 90, "min_relation_delta_ms": 12})
+        config.update(
+            {
+                "short_gap_ms": 10,
+                "long_gap_ms": 24,
+                "min_relation_delta_ms": 5,
+                "max_jitter_tolerance_ms": 8,
+            }
+        )
     elif strategy_id == 1:
-        config.update({"rank_gaps_ms": [40, 140, 260], "min_rank_delta_ms": 30})
+        config.update(
+            {
+                "rank_gaps_ms": [12, 26, 48],
+                "min_rank_delta_ms": 7,
+                "max_jitter_tolerance_ms": 10,
+            }
+        )
     elif strategy_id == 3:
         config.update(
             {
@@ -406,22 +435,28 @@ class ScapyL2Sender:
     def __init__(self, args: argparse.Namespace):
         if not args.iface:
             raise ValueError("scapy-l2 模式必须指定 --iface")
-        from scapy.all import Ether, IP, UDP, Raw, conf, get_if_hwaddr, sendp
+        from scapy.all import Ether, IP, UDP, Raw, conf, get_if_hwaddr
 
         conf.verb = 0
         self._ether_cls = Ether
         self._ip_cls = IP
         self._udp_cls = UDP
         self._raw_cls = Raw
-        self._sendp = sendp
         self.iface = args.iface
         self.src_mac = args.src_mac or get_if_hwaddr(args.iface)
         self.dst_mac = args.dst_mac
         self.src_ip = args.src_ip
         self.dst_ip = args.remote_ip
         self.dport = int(args.remote_port)
+        self.send_gap_ms = float(getattr(args, "l2_send_gap_ms", 0.0))
+        self._last_send_at = 0.0
+        self._socket = conf.L2socket(iface=self.iface)
 
     def send(self, payload: bytes, ip_id: int, sport: int) -> None:
+        if self.send_gap_ms > 0 and self._last_send_at > 0:
+            wait_s = self.send_gap_ms / 1000.0 - (time.time() - self._last_send_at)
+            if wait_s > 0:
+                time.sleep(wait_s)
         ip = self._ip_cls(dst=self.dst_ip, id=int(ip_id) & 0xFFFF)
         if self.src_ip:
             ip.src = self.src_ip
@@ -431,7 +466,16 @@ class ScapyL2Sender:
             / self._udp_cls(sport=int(sport) & 0xFFFF, dport=self.dport)
             / self._raw_cls(payload)
         )
-        self._sendp(frame, iface=self.iface, verbose=False)
+        self._socket.send(frame)
+        self._last_send_at = time.time()
+
+    def close(self) -> None:
+        """关闭持久二层发送 socket。"""
+
+        try:
+            self._socket.close()
+        except OSError:
+            pass
 
 
 def sleep_for_packet(index: int, pkt: PacketSpec) -> None:
@@ -532,6 +576,8 @@ def run_sender(args: argparse.Namespace) -> int:
     listen_sock.close()
     if socket_sender is not None:
         socket_sender.close()
+    if scapy_sender is not None:
+        scapy_sender.close()
 
     summary = {
         "mode": "sender",
@@ -574,6 +620,16 @@ def wait_segment_permission(control_dir: Optional[str], segment_id: int, timeout
     raise TimeoutError(f"等待 segment {segment_id} 路径切换超时")
 
 
+def mark_all_segments_done(control_dir: Optional[str]) -> None:
+    """通知控制脚本：所有隐蔽分段已经挂载完成，后续只剩普通业务转发。"""
+
+    if not control_dir:
+        return
+    control_path = Path(control_dir)
+    control_path.mkdir(parents=True, exist_ok=True)
+    (control_path / "all_segments.done").write_text("done\n", encoding="utf-8")
+
+
 def run_plan_sender(args: argparse.Namespace) -> int:
     """持续接收真实 UDP 业务包，并按多策略计划把隐蔽数据挂载到业务包上。"""
 
@@ -581,12 +637,11 @@ def run_plan_sender(args: argparse.Namespace) -> int:
     segments = list(plan["segments"])
     encoded_segments = []
     for segment in segments:
-        packets, config = encode_plan_segment(segment, int(args.sync_key))
         encoded_segments.append(
             {
-                "segment": segment,
-                "packets": packets,
-                "config": config,
+                "segment": dict(segment),
+                "packets": [],
+                "config": {},
                 "index": 0,
                 "repeat": 0,
                 "started": False,
@@ -605,6 +660,7 @@ def run_plan_sender(args: argparse.Namespace) -> int:
             src_ip=args.src_ip,
             remote_ip=args.remote_ip,
             remote_port=int(args.plain_remote_port),
+            l2_send_gap_ms=float(args.l2_send_gap_ms),
         )
     )
 
@@ -620,11 +676,14 @@ def run_plan_sender(args: argparse.Namespace) -> int:
         if current_segment >= len(encoded_segments):
             if all_segments_completed_at is None:
                 all_segments_completed_at = time.time()
-            if time.time() - all_segments_completed_at >= min(float(args.max_idle), 1.5):
-                break
         try:
             business_payload, source_addr = listen_sock.recvfrom(65535)
         except socket.timeout:
+            if (
+                current_segment >= len(encoded_segments)
+                and time.time() - last_packet_at >= float(args.max_idle)
+            ):
+                break
             continue
 
         total_business_packets += 1
@@ -637,8 +696,24 @@ def run_plan_sender(args: argparse.Namespace) -> int:
             strategy_id = int(segment["strategy_id"])
             if not item["started"]:
                 wait_segment_permission(args.control_dir, int(segment["segment_id"]))
+                _latest_plan, latest_segment = load_proxy_segment(
+                    args.plan_file,
+                    int(segment["segment_id"]),
+                )
+                packets, config = encode_plan_segment(latest_segment, int(args.sync_key))
+                item["segment"] = latest_segment
+                item["packets"] = packets
+                item["config"] = config
+                item["index"] = 0
+                item["repeat"] = 0
+                segment = item["segment"]
+                strategy_id = int(segment["strategy_id"])
                 item["started"] = True
             packets: List[PacketSpec] = item["packets"]
+            if not packets:
+                item["complete"] = True
+                current_segment += 1
+                continue
             pkt = packets[int(item["index"])]
             if int(item["repeat"]) == 0:
                 sleep_for_packet(int(item["index"]), pkt)
@@ -665,17 +740,24 @@ def run_plan_sender(args: argparse.Namespace) -> int:
                 current_segment += 1
                 if current_segment >= len(encoded_segments):
                     all_segments_completed_at = time.time()
+                    mark_all_segments_done(args.control_dir)
             continue
 
         scapy_sender.dport = int(args.plain_remote_port)
-        scapy_sender.send(
-            business_payload,
-            ip_id=(0x1000 + total_business_packets) & 0x7FFF,
-            sport=sport,
-        )
+        try:
+            scapy_sender.send(
+                business_payload,
+                ip_id=(0x1000 + total_business_packets) & 0x7FFF,
+                sport=sport,
+            )
+        except OSError:
+            if current_segment >= len(encoded_segments):
+                break
+            raise
         plain_packets += 1
 
     listen_sock.close()
+    scapy_sender.close()
     summary = {
         "mode": "plan-sender",
         "complete": all(bool(item["complete"]) for item in encoded_segments),
@@ -741,10 +823,15 @@ class Strategy2FragmentTracker:
 
     def infer(self, ip_id: int) -> int:
         seq_mod = (int(ip_id) >> 8) & 0x0F
-        if self._last_seq >= 0 and seq_mod < self._last_seq:
+        inferred_block = self._block_id
+        if self._last_seq >= 12 and seq_mod <= 3:
             self._block_id += 1
+            inferred_block = self._block_id
+        elif self._last_seq <= 3 and seq_mod >= 12 and self._block_id > 0:
+            # 低序号刚到后又出现高序号，通常是上一块的迟到包。
+            inferred_block = self._block_id - 1
         self._last_seq = seq_mod
-        return self._block_id * 16 + seq_mod
+        return inferred_block * 16 + seq_mod
 
 
 def build_router(args: argparse.Namespace) -> StrategyReceiverRouter:
@@ -1015,31 +1102,51 @@ def run_plan_receiver(args: argparse.Namespace) -> int:
         raise ValueError("plan-receiver 必须指定 --iface")
     from scapy.all import IP, UDP, Raw, sniff
 
-    plan = load_proxy_plan(args.plan_file)
-    segments = list(plan["segments"])
-    segment_by_port = {int(item["remote_port"]): item for item in segments}
-    min_port = min(segment_by_port)
-    max_port = max(segment_by_port)
-    plain_ports = set(int(item) for item in plan.get("plain_ports", []))
-    all_ports = set(segment_by_port) | plain_ports
+    plan_path = Path(args.plan_file)
+    plan_mtime = -1.0
+    plan = {}
+    segments: List[dict] = []
+    segment_by_port: Dict[int, dict] = {}
+    plain_ports: set[int] = set()
+    all_ports: set[int] = set()
 
-    strategy_configs = {
-        int(segment["strategy_id"]): strategy_config_for_segment(segment, int(args.sync_key))
-        for segment in segments
-    }
+    def refresh_plan(force: bool = False) -> None:
+        """按需重新加载计划文件，支持传输过程中的 chunk 级策略切换。"""
+
+        nonlocal plan_mtime, plan, segments, segment_by_port, plain_ports, all_ports
+        try:
+            current_mtime = plan_path.stat().st_mtime
+        except OSError:
+            if force:
+                raise
+            return
+        if not force and current_mtime == plan_mtime:
+            return
+        loaded = load_proxy_plan(str(plan_path))
+        loaded_segments = list(loaded["segments"])
+        plan = loaded
+        segments = loaded_segments
+        segment_by_port = {int(item["remote_port"]): item for item in loaded_segments}
+        plain_ports = set(int(item) for item in loaded.get("plain_ports", []))
+        all_ports = set(segment_by_port) | plain_ports
+        plan_mtime = current_mtime
+
+    refresh_plan(force=True)
+    initial_ports = set(all_ports)
+    if not initial_ports:
+        raise ValueError("plan-file 没有可监听的 UDP 端口")
+    min_port = min(initial_ports)
+    max_port = max(initial_ports)
+
     router = StrategyReceiverRouter(
-        strategy_configs=strategy_configs,
+        strategy_configs={},
         sync_key=int(args.sync_key),
-        timing_ports={
-            int(segment["strategy_id"]): int(segment["remote_port"])
-            for segment in segments
-            if int(segment["strategy_id"]) in TIMING_STRATEGIES
-        },
+        timing_ports={},
         accept_timing_without_port=False,
     )
 
     drains = []
-    for port in all_ports:
+    for port in initial_ports:
         drain = SocketDrain(args.listen_ip, int(port))
         drain.start()
         drains.append(drain)
@@ -1047,7 +1154,6 @@ def run_plan_receiver(args: argparse.Namespace) -> int:
     forward_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     forward_target = (args.forward_ip, int(args.forward_port))
     strategy2_trackers: Dict[int, Strategy2FragmentTracker] = {}
-
     started_at = time.time()
     first_packet_time: Optional[float] = None
     last_packet_at = started_at
@@ -1063,6 +1169,7 @@ def run_plan_receiver(args: argparse.Namespace) -> int:
 
         if IP not in packet or UDP not in packet:
             return
+        refresh_plan()
         dport = int(packet[UDP].dport)
         if dport not in all_ports:
             return
@@ -1096,7 +1203,7 @@ def run_plan_receiver(args: argparse.Namespace) -> int:
             "sync_key": int(args.sync_key),
         }
         metadata.update(strategy_config_for_segment(segment, int(args.sync_key)))
-
+        metadata["force_strategy_id"] = strategy_id
         if strategy_id == 2:
             tracker = strategy2_trackers.setdefault(segment_id, Strategy2FragmentTracker())
             metadata["fragment_id"] = tracker.infer(int(metadata["ip_id"]))

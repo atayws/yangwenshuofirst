@@ -387,6 +387,16 @@ class StrategyReceiverRouter:
             "k",
             "num_output",
             "path_weights",
+            "length_bands",
+            "classification_margin_bytes",
+            "header_overhead_bytes",
+            "bits_per_packet",
+            "repeat_count",
+            "short_gap_ms",
+            "long_gap_ms",
+            "rank_gaps_ms",
+            "min_relation_delta_ms",
+            "min_rank_delta_ms",
         ):
             if key in first_meta and first_meta[key] is not None:
                 config[key] = first_meta[key]

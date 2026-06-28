@@ -23,6 +23,7 @@
 | `experiments/udp_covert_proxy.py` | 策略0-5 统一真实 UDP 业务流代理。 |
 | `experiments/verify_udp_proxy_real_flow.py` | 六策略真实 UDP 业务流挂载自动验证脚本。 |
 | `experiments/run_rule_proxy_closed_loop.py` | 当前推荐的一键真实业务流闭环验证：INT、规则选策略、六策略代理挂载、业务流转发。 |
+| `experiments/run_dynamic_rule_proxy_closed_loop.py` | 长消息在线动态切换验证：传输中改变链路状态，后续 segment 自动换策略/路径。 |
 | `experiments/run_interactive_closed_loop.py` | 历史兼容交互脚本：自动启动拓扑、业务流、INT、规则选策略和收发重组。 |
 | `experiments/user_demo/` | 五窗口用户演示程序：拓扑服务、发送、接收显示、链路状态、链路设置。 |
 | `python/receiver/strategy_router.py` | 统一策略接收分发器，负责混合流识别、分组和解码调用。 |
@@ -43,7 +44,7 @@ sudo bash run.sh
 
 `run.sh` 会做这些事：
 
-1. 清理旧 Mininet 状态。
+1. 清理旧 Mininet/BMv2 状态，删除上次异常退出留下的 veth 接口和 simple_switch 残留，避免 `RTNETLINK answers: File exists`。
 2. 编译 `p4/covert_int_switch.p4` 到 `p4/covert_int_switch.json`。
 3. 启动 h1、h2、s1、s2 和三条 s1-s2 链路。
 4. 关闭虚拟网卡 offload。
@@ -61,7 +62,7 @@ h2 ping -c 5 10.0.1.1
 
 中期现场最推荐使用五窗口演示方式。它把“拓扑服务、发送端、接收端、链路状态、链路设置”分开，更接近最终系统形态。
 
-窗口1：启动拓扑服务。该窗口需要 `sudo`，启动后保持运行。
+窗口1：启动拓扑服务。该窗口需要 `sudo`，启动后保持运行。服务启动前会自动清理旧 Mininet/BMv2 残留；如果 `127.0.0.1:38765` 被旧五窗口服务占用，会先尝试请求旧服务退出，再启动新的拓扑。
 
 ```bash
 cd /home/p4/yws-covert
@@ -114,7 +115,7 @@ python3 experiments/user_demo/link_config_tool.py 1 5 0 2 15 0 3 30 0
 experiments/results/user_demo/
 ```
 
-当前五窗口发送入口已经使用真实 UDP 业务流代理：窗口4输入文本后，h1 先启动本机 `iperf -u` 业务流喂给 `plan-sender`，`plan-sender` 按策略计划把隐蔽字段挂载到这些真实业务包上；h2 的 `plan-receiver` 解码隐蔽数据后，把原始业务 payload 转发给本机 `iperf -s -u`。窗口2显示解码结果，窗口3继续显示 INT 状态，窗口5可动态修改链路。
+当前五窗口发送入口已经使用真实 UDP 业务流代理，并升级为 chunk 级动态重规划：窗口4输入文本后，h1 先启动本机 `iperf -u` 业务流喂给 `plan-sender`；每个 segment 开始前，服务读取最新 INT 链路状态，为该 segment 重新选择策略/路径并改写 `proxy_plan.json`，然后才放行业务包。h2 的 `plan-receiver` 会动态重新加载计划，解码隐蔽数据后把原始业务 payload 转发给本机 `iperf -s -u`。窗口2显示解码结果，窗口3继续显示 INT 状态和当前运行策略，窗口5可在发送过程中动态修改链路。
 
 当前 VM 已验证两组服务级场景：
 
@@ -122,6 +123,24 @@ experiments/results/user_demo/
 |---|---|---|---|
 | 默认链路 | `MIDTERM_PROXY_FLOW_六策略真实业务流闭环测试_0123456789` | `success=true`，`hidden_match=true`，INT 与反向 `iperf` 持续运行 | `S0@[0] | S1@[1] | S3@[2] | S4@[0,1,2] | S5@[0,1,2] | S2@[0]` |
 | 修改链路 `1 60 8 2 10 0 3 25 2` | `AFTER_LINK_CHANGE_自动规则切换验证_abcdef0123456789` | `success=true`，`hidden_match=true` | `S0@[0] | S1@[1] | S3@[1] | S2@[0] | S4@[1,2,0] | S5@[0,1,2]` |
+
+长消息中途切换的自动化复测命令：
+
+```bash
+sudo python3 experiments/run_dynamic_rule_proxy_closed_loop.py \
+  --clean-results \
+  --timeout 140 \
+  --iperf-rate 260K \
+  --iperf-len 200
+```
+
+该脚本会在隐蔽消息传输中主动改变三条链路的 delay/loss，验证后续 segment 是否根据最新 INT 状态切换策略和路径。当前 VM 结果文件为：
+
+```text
+experiments/results/dynamic_rule_proxy_closed_loop/summary.json
+```
+
+关键结果：`success=true`、`hidden_match=true`、`all_six_strategies_seen=true`、`strategy_changed_after_network_change=true`、`path_changed_after_network_change=true`、`int_success=true`、`iperf_server_received=true`。切换粒度是 chunk/segment 边界，不是包级任意切换。
 
 ## 5. 一键交互式闭环演示
 

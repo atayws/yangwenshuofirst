@@ -101,6 +101,17 @@ def need_mininet() -> None:
         raise RuntimeError("当前 Python 环境没有安装 Mininet，需在 P4 Ubuntu 虚拟机中运行。")
 
 
+def cleanup_stale_mininet_state() -> None:
+    """清理上次异常退出留下的 Mininet/BMv2 状态。"""
+    subprocess.run(["mn", "-c"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    subprocess.run(["pkill", "-f", "simple_switch"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    for ipc_path in Path("/tmp").glob("bmv2-*-notifications.ipc"):
+        try:
+            ipc_path.unlink()
+        except OSError:
+            pass
+
+
 def wait_for_thrift(port: int, timeout_s: float = 20.0) -> None:
     """等待 simple_switch thrift 端口就绪。"""
     deadline = time.time() + timeout_s
@@ -178,6 +189,8 @@ def configure_mtu(net, host_mtu: int, trunk_mtu: int) -> None:
 def build_net(args):
     """创建 h1-s1-(三链路)-s2-h2 拓扑。"""
     need_mininet()
+    if getattr(args, "cleanup", True):
+        cleanup_stale_mininet_state()
     net = Mininet(controller=None, link=TCLink, autoSetMacs=False, autoStaticArp=True)
 
     h1 = net.addHost("h1", ip="10.0.1.1/24", mac="00:00:00:00:00:01")
@@ -235,7 +248,9 @@ def main() -> int:
     parser.add_argument("--s2-cli", required=True)
     parser.add_argument("--host-mtu", type=int, default=1500)
     parser.add_argument("--trunk-mtu", type=int, default=1600)
+    parser.add_argument("--no-cleanup", action="store_true", help="跳过启动前 Mininet/BMv2 残留清理")
     args = parser.parse_args()
+    args.cleanup = not args.no_cleanup
 
     net = None
     try:

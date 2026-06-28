@@ -1,6 +1,6 @@
 # 实现原理文档
 
-**文档版本**：v4.4  
+**文档版本**：v4.5
 **更新日期**：2026-06-28  
 **当前阶段**：中期审核阶段，优先保证阶段1闭环可演示。
 
@@ -82,7 +82,7 @@ register_write reg_rr_counter 0 0
 register_write reg_rr_current_path 0 0
 ```
 
-`reg_rr_burst_size=12` 表示每条链路连续发送 12 个包后切换到下一条链路。这个值后续可以根据策略窗口长度调整。
+`reg_rr_burst_size=12` 表示每条链路连续发送 12 个包后切换到下一条链路。这个值后续可以根据策略窗口长度调整。启动拓扑前，公共运行时会默认执行 Mininet/BMv2 残留清理，避免旧 veth 接口或 simple_switch 进程影响下一次演示。
 
 ## 4. INT 实现
 
@@ -345,7 +345,25 @@ sudo python3 experiments/run_interactive_closed_loop.py \
 | `link_status_window.py` | 链路状态窗口，轮询 `status` 接口显示三路径 INT 指标和建议策略计划。 |
 | `link_config_tool.py` | 链路配置工具，调用 `set_links` 接口动态设置 path0/path1/path2 的 netem delay/loss。 |
 
-服务端口默认为 `127.0.0.1:38765`。拓扑服务复用 `mininet_runtime.py`、`reverse_probe_receiver.py`、`udp_covert_proxy.py plan-sender/plan-receiver` 和 `RuleBasedPolicySelector`。发送过程是：读取最新 INT 状态 -> 生成规则策略计划 -> 写出 `proxy_plan.json` -> h2 启动 `plan-receiver` 和 `iperf -s -u` -> h1 启动 `plan-sender` 并用本机 `iperf -u` 产生真实业务包 -> 按分段切换 s1 路径模式 -> h2 代理识别策略、解码隐蔽数据并把原始 payload 转发给 `iperf` server。
+服务端口默认为 `127.0.0.1:38765`。拓扑服务复用 `mininet_runtime.py`、`reverse_probe_receiver.py`、`udp_covert_proxy.py plan-sender/plan-receiver` 和 `RuleBasedPolicySelector`。服务会先占用控制端口，再启动 Mininet；如果检测到旧五窗口服务占用端口，会先发送 shutdown 请求，避免端口冲突导致拓扑刚启动又退出。
+
+升级后的发送过程采用 chunk 级在线动态重规划：
+
+1. 窗口4提交隐蔽文本后，服务先为每个 segment 预留 UDP 端口、顺序号和 `segment_id`。
+2. h2 启动 `plan-receiver` 和 `iperf -s -u`，h1 启动 `plan-sender`，并用本机 `iperf -u` 持续产生真实业务包。
+3. 每个 segment 开始前，`plan-sender` 先写出 `segment_N.ready` 等待控制面。
+4. `topology_service.py` 读取最新 `latest_int_summary.json`，用规则选择器为当前 segment 选择策略和路径，改写 `proxy_plan.json` 中这一段的 `strategy_id/paths`。
+5. 服务通过 simple_switch CLI 切换 s1 的路径模式，然后写出 `segment_N.done` 放行该段。
+6. h2 侧 `plan-receiver` 动态重新加载 `proxy_plan.json`，按当前 segment 的策略解码隐蔽数据，并把原始业务 payload 转发给 `iperf` server。
+
+因此，运行中用窗口5修改链路 delay/loss 后，后续 segment 会基于新的 INT 状态重新选择策略和路径。当前切换粒度是 segment/chunk 边界，不做包级任意切换，原因是策略0/1依赖完整时序窗口，策略4依赖喷泉码 frame，策略5依赖路径序列窗口，包级乱切会破坏解码边界。
+
+为了提高长输入正确率和发送速度，五窗口默认路径做了专门优化：
+
+1. 默认 `chunk-size` 从早期 6 字节提高到 64 字节，减少 segment 数和控制面路径切换次数；1024 字节输入由 171 个 segment 降到 16 个 segment。
+2. 发送端代理使用持久 Scapy L2 socket，并把默认 L2 发包间隔控制在 1ms 左右，避免每包重新建发送路径。
+3. 策略3在普通模式下仍保持 `repeat_count=2`，保证 BMv2/抓包轻微丢包时可以投票恢复。
+4. 策略选择同时使用 INT 测量值和 `link_config_tool.py` 设置的 netem 参数；手动设置丢包后，后续 segment 会立即避开该链路。只有没有健康链路时，才使用策略2并提高重复强度。
 
 当前 VM 已完成五窗口服务级联调：
 
@@ -353,6 +371,27 @@ sudo python3 experiments/run_interactive_closed_loop.py \
 |---|---|---|---|---|
 | 默认链路 | path0/path1/path2 均有 INT 样本 | `MIDTERM_PROXY_FLOW_六策略真实业务流闭环测试_0123456789` | `success=true`，`hidden_match=true`，反向 `iperf` 与 INT 持续运行 | `S0@[0] | S1@[1] | S3@[2] | S4@[0,1,2] | S5@[0,1,2] | S2@[0]` |
 | 修改链路 | `1 60 8 2 10 0 3 25 2` 后，INT 解析到 path0 约 60ms/5.8% 丢包、path1 约 10ms/0%、path2 约 25ms/1% | `AFTER_LINK_CHANGE_自动规则切换验证_abcdef0123456789` | `success=true`，`hidden_match=true`，策略计划随链路状态变化 | `S0@[0] | S1@[1] | S3@[1] | S2@[0] | S4@[1,2,0] | S5@[0,1,2]` |
+
+最新长输入回归结果如下：
+
+| 场景 | 结果 | 耗时 | 说明 |
+|---|---|---:|---|
+| 默认链路 64 字节 | `success=true`，误码率 `0%` | 约 11.4s | 1 个 64B segment，策略3。 |
+| 默认链路 256 字节 | `success=true`，误码率 `0%` | 约 11.8s | 4 个 segment，策略3。 |
+| 默认链路 1024 字节 | `success=true`，误码率 `0%` | 约 28.0s | 16 个 segment；旧版 6B 分段约 87.8s。 |
+| path0 设置 2% 丢包，发送 256 字节 | `success=true`，误码率 `0%` | 约 12.0s | 规则立即避开 path0，只使用 path1/path2。 |
+
+长消息动态重规划的自动化复测脚本为：
+
+```bash
+sudo python3 experiments/run_dynamic_rule_proxy_closed_loop.py \
+  --clean-results \
+  --timeout 140 \
+  --iperf-rate 260K \
+  --iperf-len 200
+```
+
+VM 结果目录：`experiments/results/dynamic_rule_proxy_closed_loop/`。当前验证结果：`success=true`、`hidden_match=true`、`all_six_strategies_seen=true`、`strategy_changed_after_network_change=true`、`path_changed_after_network_change=true`、`int_success=true`、`iperf_server_received=true`。
 
 ### 5.7 策略0：高隐蔽相对时序
 
@@ -362,6 +401,15 @@ sudo python3 experiments/run_interactive_closed_loop.py \
 短间隔 + 长间隔 -> 0
 长间隔 + 短间隔 -> 1
 ```
+
+当前发送端不再使用固定大阈值，而是在每个 segment 开始前读取最新 INT 状态生成时序配置：
+
+```text
+short_gap_ms = f(delay_ms, jitter_ms)
+long_gap_ms  = short_gap_ms + guard(delay_ms, jitter_ms)
+```
+
+低抖动链路会压缩到较小间隔以提高速率；高抖动链路会增大 `guard`，避免两个连续间隔被网络抖动颠倒。普通五窗口演示模式下，如果链路存在明显丢包或高抖动，规则选择器会优先选择策略2或策略3，而不是强行使用策略0。当前 VM 验证中，干净链路下策略0实际配置为 `short_gap_ms=8ms`、`long_gap_ms=22ms`；当链路抖动升高到约 29ms 以上时，会自动放大到 `100ms/220ms`。
 
 特点：
 
@@ -376,6 +424,8 @@ sudo python3 experiments/run_interactive_closed_loop.py \
 ```text
 三个间隔的相对大小排序 -> 一个 2 bit 符号
 ```
+
+策略1同样使用 INT 驱动的自适应排序间隔。干净链路下使用较小的三个间隔提高容量；高抖动链路下增大三个间隔之间的 separation，使排序关系不容易被扰动。当前 VM 验证中，干净链路下策略1实际配置为 `12ms/24ms/42ms`；当链路抖动升高到约 29ms 以上时，会自动放大到 `100ms/180ms/300ms`。因此策略1适合作为低抖动链路上的高容量时序方案，不建议在高丢包或大抖动链路上作为默认策略。
 
 特点：
 

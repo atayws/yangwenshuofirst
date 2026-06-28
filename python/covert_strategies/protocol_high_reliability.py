@@ -15,6 +15,7 @@ encrypted_value 解密后再拆成两部分：
 """
 
 import hashlib
+from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
@@ -249,13 +250,13 @@ class ProtocolHighReliabilityStrategy(CovertStrategy):
         for seq_mod in range(self.DATA_UNITS):
             values = candidates.get(seq_mod, [])
             if values:
-                data_units[seq_mod] = values[0].plain_nibble
+                data_units[seq_mod] = self._majority_nibble(values)
 
         for parity_index in range(self.PARITY_UNITS):
             seq_mod = self.DATA_UNITS + parity_index
             values = candidates.get(seq_mod, [])
             if values:
-                parity_units[parity_index] = values[0].plain_nibble
+                parity_units[parity_index] = self._majority_nibble(values)
 
         recovered_positions: List[int] = []
         for group in range(self.PARITY_UNITS):
@@ -280,9 +281,17 @@ class ProtocolHighReliabilityStrategy(CovertStrategy):
         data_complete = [int(value) & 0x0F for value in data_units]
         computed_parity = self._build_parity(data_complete)
         expected_auth = self._auth_nibble(block_id, data_complete + computed_parity)
-        if expected_auth not in auth_values:
+        auth_votes = Counter(value & 0x0F for value in auth_values)
+        if expected_auth not in auth_votes:
             return None
         return data_complete, recovered_positions
+
+    @staticmethod
+    def _majority_nibble(values: List[Strategy2Candidate]) -> int:
+        """对同一块同一序号的候选半字节做多数投票。"""
+
+        votes = Counter(candidate.plain_nibble & 0x0F for candidate in values)
+        return sorted(votes.items(), key=lambda item: (-item[1], item[0]))[0][0]
 
     def _collect_candidates(self, metadata: List[dict]) -> Dict[int, Dict[int, List[Strategy2Candidate]]]:
         """从元数据中收集策略2候选片段，并按 block_id/seq_mod 分组。"""

@@ -46,16 +46,24 @@ def fmt_float(value: object, digits: int = 2) -> str:
 def fmt_paths(paths: object) -> str:
     if not isinstance(paths, list) or not paths:
         return "-"
-    return ",".join(f"path{path}" for path in paths)
+    return ",".join(f"链路{int(path) + 1}" for path in paths)
 
 
 def fmt_strategy(strategy_id: object, strategy_name: object = "") -> str:
     if strategy_id is None:
         return "-"
-    name = str(strategy_name or "").strip()
-    if name:
-        return f"策略{strategy_id}({name})"
-    return f"策略{strategy_id}"
+    labels = {
+        0: "策略0 相对时序",
+        1: "策略1 排序时序",
+        2: "策略2 IP-ID可靠",
+        3: "策略3 包长统计",
+        4: "策略4 喷泉多路径",
+        5: "策略5 路径序列",
+    }
+    try:
+        return labels.get(int(strategy_id), f"策略{strategy_id}")
+    except (TypeError, ValueError):
+        return f"策略{strategy_id}"
 
 
 def draw_running_strategy(status: dict) -> None:
@@ -64,15 +72,27 @@ def draw_running_strategy(status: dict) -> None:
     print("实时运行策略:")
     if current.get("active"):
         print(
-            f"  状态: {current.get('stage')}  "
             f"session={current.get('session_id')}  "
-            f"chunk={current.get('chunk_id')}  "
+            f"segment={current.get('chunk_id')}  "
             f"{fmt_strategy(current.get('strategy_id'), current.get('strategy_name'))}  "
-            f"paths={fmt_paths(current.get('paths'))}  "
-            f"packets={current.get('packets', '-')}"
+            f"路径={fmt_paths(current.get('paths'))}"
         )
+        config = current.get("strategy_config") or {}
+        if config:
+            if int(current.get("strategy_id") or -1) == 0:
+                print(
+                    "  自适应时序: "
+                    f"短间隔={fmt_float(config.get('short_gap_ms'), 1)}ms  "
+                    f"长间隔={fmt_float(config.get('long_gap_ms'), 1)}ms"
+                )
+            elif int(current.get("strategy_id") or -1) == 1:
+                gaps = config.get("rank_gaps_ms") or []
+                if gaps:
+                    print(
+                        "  自适应时序: 排序间隔="
+                        + "/".join(f"{fmt_float(item, 1)}ms" for item in gaps)
+                    )
         print(f"  说明: {current.get('message', '-')}")
-        print(f"  本轮计划: {current.get('plan_text') or '-'}")
         return
 
     print(f"  当前: {current.get('message') or '当前没有隐蔽数据发送，普通业务流按三路径轮询运行'}")
@@ -81,7 +101,21 @@ def draw_running_strategy(status: dict) -> None:
             f"  最近完成: session={last.get('session_id')}  "
             f"success={last.get('success')}  "
             f"hidden_match={last.get('hidden_match')}  "
-            f"计划={last.get('plan_text') or '-'}"
+            f"误码率={float(last.get('bit_error_rate', 1.0)):.4%}"
+        )
+
+
+def draw_link_strategies(status: dict) -> None:
+    print("当前建议策略:")
+    items = status.get("per_link_strategy", []) or []
+    if not items:
+        print("  暂无 INT 状态，默认优先策略2。")
+        return
+    for item in items:
+        path = int(item.get("path", 0)) + 1
+        print(
+            f"  链路{path}: {item.get('strategy_label', '-')}"
+            f"  ({item.get('reason', '-')})"
         )
 
 
@@ -101,7 +135,7 @@ def draw(status: dict, no_clear: bool) -> None:
         state = states.get(str(path_id), {}) or states.get(path_id, {}) or {}
         config = configs.get(str(path_id), {}) or configs.get(path_id, {}) or {}
         print(
-            f"path{path_id} "
+            f"链路{path_id + 1} "
             f"{fmt_float(config.get('delay_ms'), 1):>6}ms/{fmt_float(config.get('loss_percent'), 1):>5}% "
             f"{fmt_float(state.get('delay_ms')):>10} "
             f"{fmt_float(state.get('jitter_ms')):>8} "
@@ -111,15 +145,9 @@ def draw(status: dict, no_clear: bool) -> None:
             f"{counts.get(str(path_id), counts.get(path_id, 0)):>6}"
         )
     print()
-    draw_running_strategy(status)
+    draw_link_strategies(status)
     print()
-    print("建议策略计划:")
-    print(f"  {status.get('suggested_plan_text')}")
-    for entry in status.get("suggested_plan", []):
-        print(
-            f"  - {entry.get('name')}: strategy={entry.get('strategy_id')} "
-            f"paths={entry.get('paths')} weight={entry.get('weight')}"
-        )
+    draw_running_strategy(status)
 
 
 def main() -> int:

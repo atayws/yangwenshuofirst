@@ -31,10 +31,9 @@ def print_result(result: dict) -> None:
     print("\n[接收端解码结果]")
     print(f"session_id: {result.get('session_id')}")
     print(f"成功: {result.get('success')}  比对一致: {result.get('hidden_match')}")
+    print(f"误码率: {float(result.get('bit_error_rate', 1.0)):.4%}  "
+          f"错误bit: {result.get('bit_errors', '-')} / {result.get('total_bits', '-')}")
     print(f"解码文本: {result.get('decoded_text')}")
-    print(f"发送端输入: {result.get('input_text')}")
-    print(f"策略计划: {result.get('plan_text')}")
-    print(f"结果目录: {result.get('session_dir')}")
 
 
 def main() -> int:

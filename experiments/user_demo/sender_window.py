@@ -27,13 +27,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def print_result(result: dict) -> None:
-    print("\n[发送完成]")
-    print(f"session_id: {result.get('session_id')}")
-    print(f"发送成功: {result.get('success')}  比对一致: {result.get('hidden_match')}")
-    print(f"输入: {result.get('input_text')}")
-    print(f"h2解码: {result.get('decoded_text')}")
-    print(f"策略计划: {result.get('plan_text')}")
-    print(f"结果目录: {result.get('session_dir')}\n")
+    print(
+        f"[发送完成] session={result.get('session_id')} "
+        f"成功={result.get('success')}  误码率={float(result.get('bit_error_rate', 1.0)):.4%}"
+    )
 
 
 def send_text(args: argparse.Namespace, text: str) -> None:
@@ -50,6 +47,7 @@ def send_text(args: argparse.Namespace, text: str) -> None:
 def main() -> int:
     args = parse_args()
     print("[发送端窗口] 输入隐蔽数据后回车发送，输入 /quit 退出。")
+    print("提示：只输入 0/1 时会按真正 bit 串发送，例如 101 就是 3 bit。")
     if args.text is not None:
         send_text(args, args.text)
         return 0

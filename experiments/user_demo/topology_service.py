@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import errno
 import json
 import os
 from pathlib import Path
 import shutil
+import socket
 import socketserver
 import subprocess
 import sys
@@ -59,15 +61,20 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="启动用户演示拓扑服务")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--chunk-size", type=int, default=7)
+    parser.add_argument("--chunk-size", type=int, default=64)
     parser.add_argument("--base-dport", type=int, default=51200)
     parser.add_argument("--session-id-start", type=int, default=100)
     parser.add_argument("--pace-ms", type=float, default=1.0)
     parser.add_argument("--chunk-gap-ms", type=float, default=100.0)
     parser.add_argument("--timeout", type=int, default=75)
     parser.add_argument("--iperf-rate", default="700K")
-    parser.add_argument("--forward-iperf-rate", default="220K")
+    parser.add_argument("--forward-iperf-rate", default="1.5M")
     parser.add_argument("--forward-iperf-len", type=int, default=200)
+    parser.add_argument(
+        "--cover-six",
+        action="store_true",
+        help="演示用：前几个分段强制覆盖六个策略；默认关闭以保证发送窗口快而稳。",
+    )
     parser.add_argument("--clean-results", action="store_true")
     return parser.parse_args()
 
@@ -126,6 +133,319 @@ def path_sort_key(item: tuple[int, object]) -> tuple[float, float, float]:
     )
 
 
+def _state_value(state: object, key: str, default: float = 0.0) -> float:
+    """从 INT 状态对象或字典中取浮点值。"""
+
+    if isinstance(state, dict):
+        return float(state.get(key, default))
+    return float(getattr(state, key, default))
+
+
+def strategy_for_link_state(state: object, hidden_len: int = 0) -> int:
+    """根据链路状态和数据长度选择默认承载策略。"""
+
+    loss_rate = _state_value(state, "loss_rate", 0.0)
+    jitter_ms = _state_value(state, "jitter_ms", 0.0)
+    delay_ms = _state_value(state, "delay_ms", 0.0)
+    if loss_rate <= 0.003 and jitter_ms <= 8.0 and delay_ms <= 80.0:
+        return 3
+    return 2
+
+
+def is_clean_strategy3_link(state: object) -> bool:
+    """判断链路是否适合默认快速策略3。"""
+
+    return strategy_for_link_state(state) == 3
+
+
+def reliability_weight_for_link(state: object) -> int:
+    """根据链路丢包率决定策略2重复强度。"""
+
+    loss_rate = _state_value(state, "loss_rate", 0.0)
+    if loss_rate <= 0.003:
+        return 2
+    if loss_rate <= 0.03:
+        return 4
+    if loss_rate <= 0.08:
+        return 5
+    return 6
+
+
+def clamp_float(value: float, low: float, high: float) -> float:
+    """把浮点值限制在指定范围内。"""
+
+    return max(low, min(high, float(value)))
+
+
+def timing_config_for_state(strategy_id: int, state: object) -> dict:
+    """根据 INT 的时延和抖动为策略0/1生成自适应时间间隔。"""
+
+    jitter_ms = max(0.0, _state_value(state, "jitter_ms", 0.0))
+    delay_ms = max(0.0, _state_value(state, "delay_ms", 0.0))
+
+    if int(strategy_id) == 0:
+        guard = clamp_float(max(5.0, jitter_ms * 5.0, delay_ms * 0.10), 5.0, 50.0)
+        short_gap = clamp_float(max(8.0, jitter_ms * 8.0, delay_ms * 0.12), 8.0, 100.0)
+        long_gap = clamp_float(short_gap + max(guard * 2.8, short_gap * 1.10), short_gap + 12.0, 220.0)
+        return {
+            "short_gap_ms": round(short_gap, 3),
+            "long_gap_ms": round(long_gap, 3),
+            "min_relation_delta_ms": round(max(3.0, guard), 3),
+            "max_jitter_tolerance_ms": round(max(8.0, guard * 1.5), 3),
+        }
+
+    if int(strategy_id) == 1:
+        base_gap = clamp_float(max(12.0, jitter_ms * 6.0, delay_ms * 0.10), 12.0, 100.0)
+        separation = clamp_float(max(12.0, jitter_ms * 6.0, delay_ms * 0.08), 12.0, 80.0)
+        gaps = [base_gap, base_gap + separation, base_gap + separation * 2.5]
+        return {
+            "rank_gaps_ms": [round(item, 3) for item in gaps],
+            "min_rank_delta_ms": round(max(7.0, separation * 0.55), 3),
+            "max_jitter_tolerance_ms": round(max(8.0, separation * 0.9), 3),
+        }
+
+    return {}
+
+
+def state_for_entry(entry: PolicyEntry, path_states: dict | None) -> object:
+    """取策略计划第一条路径对应的 INT 状态。"""
+
+    if not path_states or not entry.paths:
+        return {}
+    path_id = int(entry.paths[0])
+    return path_states.get(path_id, path_states.get(str(path_id), {}))
+
+
+def strategy_config_for_entry(
+    strategy_id: int,
+    entry: PolicyEntry,
+    hidden_len: int,
+    path_states: dict | None = None,
+) -> dict:
+    """为动态分段写入策略私有配置。"""
+
+    if int(strategy_id) in {0, 1}:
+        return timing_config_for_state(strategy_id, state_for_entry(entry, path_states))
+    if int(strategy_id) == 2:
+        return {"repeat_count": max(1, int(entry.weight))}
+    if int(strategy_id) == 3:
+        return {"repeat_count": max(1, int(entry.weight))}
+    return {}
+
+
+def strategy_label(strategy_id: object) -> str:
+    """把策略编号转换成窗口里容易看懂的名称。"""
+
+    labels = {
+        0: "策略0 相对时序",
+        1: "策略1 排序时序",
+        2: "策略2 IP-ID可靠",
+        3: "策略3 包长统计",
+        4: "策略4 喷泉多路径",
+        5: "策略5 路径序列",
+    }
+    try:
+        return labels.get(int(strategy_id), f"策略{strategy_id}")
+    except (TypeError, ValueError):
+        return "-"
+
+
+def is_bit_text(text: str) -> bool:
+    """判断用户输入是否应按真正的 0/1 比特串处理。"""
+
+    compact = "".join(str(text).split())
+    return bool(compact) and all(ch in "01" for ch in compact)
+
+
+def pack_bits(bits: str) -> bytes:
+    """把任意长度的 0/1 字符串右侧补零后压缩成字节。"""
+
+    padded = bits + "0" * ((8 - len(bits) % 8) % 8)
+    return bytes(int(padded[index : index + 8], 2) for index in range(0, len(padded), 8))
+
+
+def bytes_to_bits(data: bytes) -> str:
+    """把字节串展开成 0/1 字符串。"""
+
+    return "".join(f"{value:08b}" for value in data)
+
+
+def build_secret_payload(text: str) -> tuple[bytes, dict]:
+    """把发送窗口输入转换成真实承载字节和显示元数据。"""
+
+    if is_bit_text(text):
+        bits = "".join(str(text).split())
+        return pack_bits(bits), {
+            "input_mode": "bits",
+            "input_bits": bits,
+            "bit_length": len(bits),
+            "display_input": bits,
+        }
+    data = text.encode("utf-8")
+    return data, {
+        "input_mode": "text",
+        "bit_length": len(data) * 8,
+        "display_input": text,
+    }
+
+
+def display_decoded_payload(decoded: bytes, meta: dict) -> str:
+    """按用户输入类型恢复窗口显示文本。"""
+
+    if meta.get("input_mode") == "bits":
+        return bytes_to_bits(decoded)[: int(meta.get("bit_length", 0))]
+    return decoded.decode("utf-8", errors="replace")
+
+
+def expected_display_bits(secret: bytes, meta: dict) -> str:
+    """生成误码率计算使用的期望比特串。"""
+
+    if meta.get("input_mode") == "bits":
+        return str(meta.get("input_bits", ""))
+    return bytes_to_bits(secret)
+
+
+def decoded_display_bits(decoded: bytes, meta: dict) -> str:
+    """生成误码率计算使用的接收比特串。"""
+
+    if meta.get("input_mode") == "bits":
+        return bytes_to_bits(decoded)[: int(meta.get("bit_length", 0))]
+    return bytes_to_bits(decoded)
+
+
+def bit_error_stats(expected: str, actual: str) -> dict:
+    """计算包含长度差异的误码统计。"""
+
+    compare_len = min(len(expected), len(actual))
+    bit_errors = sum(1 for index in range(compare_len) if expected[index] != actual[index])
+    bit_errors += abs(len(expected) - len(actual))
+    total_bits = max(len(expected), 1)
+    return {
+        "bit_errors": bit_errors,
+        "total_bits": len(expected),
+        "received_bits": len(actual),
+        "bit_error_rate": bit_errors / total_bits,
+    }
+
+
+def split_secret_chunks(secret: bytes, chunk_size: int) -> List[bytes]:
+    """按较大的数据块切分，避免几个比特被拆成大量 segment。"""
+
+    size = max(1, int(chunk_size))
+    return [secret[offset : offset + size] for offset in range(0, len(secret), size)]
+
+
+def write_initial_dynamic_proxy_plan(path: Path, secret: bytes, base_port: int, chunk_size: int) -> dict:
+    """先写出所有分段的端口和顺序，具体策略在每个分段开始前动态改写。"""
+
+    segments = []
+    chunks = split_secret_chunks(secret, chunk_size)
+    for index, chunk in enumerate(chunks):
+        segments.append(
+            {
+                "segment_id": index,
+                "strategy_id": 2,
+                "paths": [0],
+                "weight": 1,
+                "hidden_hex": chunk.hex(),
+                "expected_bytes": len(chunk),
+                "sequence_num": 90 + index,
+                "remote_port": base_port + index,
+                "repeat": 1,
+                "strategy3_business_budget": 260,
+            }
+        )
+    data = {
+        "hidden_hex": secret.hex(),
+        "plain_ports": [base_port + len(segments)],
+        "segments": segments,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return data
+
+
+def update_dynamic_proxy_segment(
+    path: Path,
+    segment_id: int,
+    entry: PolicyEntry,
+    hidden: bytes,
+    path_states: dict | None = None,
+) -> dict:
+    """把当前分段的最新策略和路径写回 plan 文件，供发送/接收代理重新加载。"""
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for segment in data["segments"]:
+        if int(segment["segment_id"]) == int(segment_id):
+            strategy_id = int(entry.strategy_id)
+            segment.update(
+                {
+                    "strategy_id": strategy_id,
+                    "paths": [int(path_id) for path_id in entry.paths],
+                    "weight": int(entry.weight),
+                    "hidden_hex": hidden.hex(),
+                    "expected_bytes": len(hidden),
+                    "repeat": 3 if strategy_id in {0, 1} else (5 if strategy_id == 5 else 1),
+                    "strategy3_business_budget": 260,
+                    "strategy_config": strategy_config_for_entry(
+                        strategy_id,
+                        entry,
+                        len(hidden),
+                        path_states,
+                    ),
+                }
+            )
+            break
+    else:
+        raise ValueError(f"找不到 segment {segment_id}")
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return data
+
+
+def wait_for_all_segments_done(control_dir: Path, timeout_s: float = 30.0) -> bool:
+    """等待发送代理确认所有隐蔽分段已经挂载完成。"""
+
+    marker = control_dir / "all_segments.done"
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if marker.exists():
+            return True
+        time.sleep(0.1)
+    return marker.exists()
+
+
+def wait_for_json_success(path: Path, timeout_s: float = 30.0) -> bool:
+    """等待某个 JSON 摘要文件写出 success=true。"""
+
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if path.exists():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if data.get("success"):
+                    return True
+            except json.JSONDecodeError:
+                pass
+        time.sleep(0.2)
+    return False
+
+
+def wait_for_json_complete(path: Path, timeout_s: float = 30.0) -> bool:
+    """等待某个 JSON 摘要文件写出 complete=true。"""
+
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        if path.exists():
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if data.get("complete"):
+                    return True
+            except json.JSONDecodeError:
+                pass
+        time.sleep(0.2)
+    return False
+
+
 class DemoService:
     """持有拓扑和演示状态的服务对象。"""
 
@@ -139,6 +459,7 @@ class DemoService:
         self.sequence_index = 0
         self.services: Dict[str, Any] = {}
         self.latest_results: List[dict] = []
+        self.last_valid_path_states: Dict[int, dict] = {}
         self.link_config: Dict[int, dict] = {
             0: {"delay_ms": 5.0, "loss_percent": 0.0},
             1: {"delay_ms": 15.0, "loss_percent": 0.0},
@@ -247,7 +568,32 @@ class DemoService:
     def read_latest_int_state(self) -> dict:
         """读取最新 path_states。"""
 
-        return self.read_latest_int_summary().get("path_states", {}) or {}
+        states = self.read_latest_int_summary().get("path_states", {}) or {}
+        if states:
+            normalized = {int(path_id): state for path_id, state in states.items()}
+            if len(normalized) >= 2:
+                self.last_valid_path_states = normalized
+            return states
+        return self.last_valid_path_states
+
+    def effective_path_states(self, path_states: dict) -> Dict[int, dict]:
+        """合并 INT 测量状态和手动链路配置，供策略选择使用。"""
+
+        effective: Dict[int, dict] = {}
+        for path_id in range(3):
+            state = path_states.get(path_id, path_states.get(str(path_id), {})) if path_states else {}
+            merged = dict(state) if isinstance(state, dict) else {}
+            config = self.link_config.get(path_id, {})
+            configured_loss = float(config.get("loss_percent", 0.0)) / 100.0
+            configured_delay = float(config.get("delay_ms", 0.0))
+            measured_loss = float(merged.get("loss_rate", 0.0))
+            measured_delay = float(merged.get("delay_ms", 0.0))
+            merged["loss_rate"] = max(measured_loss, configured_loss)
+            if measured_delay <= 0.0 and configured_delay > 0.0:
+                merged["delay_ms"] = configured_delay
+            merged.setdefault("jitter_ms", 0.0)
+            effective[path_id] = merged
+        return effective
 
     def build_demo_plan(self, secret: bytes, path_states: dict) -> List[PolicyEntry]:
         """根据数据长度和链路状态生成演示策略计划。"""
@@ -275,6 +621,67 @@ class DemoService:
             PolicyEntry("fallback_path1_s3", 3, (1,), 1),
             PolicyEntry("fallback_path012_s4", 4, (0, 1, 2), 1),
         ]
+
+    def choose_dynamic_entry(self, segment_id: int, path_states: dict, hidden_len: int = 0) -> PolicyEntry:
+        """为当前分段选择策略；每个分段都会基于最新 INT 状态重新计算。"""
+
+        normalized_states = self.effective_path_states(path_states or {})
+        paths = [path_id for path_id, _state in sorted(normalized_states.items(), key=path_sort_key)]
+        for fallback in (0, 1, 2):
+            if fallback not in paths:
+                paths.append(fallback)
+        paths = paths[:3]
+
+        # 只有显式开启 --cover-six 时，才强制覆盖六个策略。普通发送窗口优先稳定和速度。
+        coverage = [0, 1, 3, 4, 5, 2] if self.args.cover_six else []
+        if coverage and segment_id < len(coverage):
+            strategy_id = coverage[segment_id]
+            if strategy_id == 0:
+                return PolicyEntry("coverage_s0", 0, (paths[0],), 1)
+            if strategy_id == 1:
+                return PolicyEntry("coverage_s1", 1, (paths[1],), 1)
+            if strategy_id == 3:
+                return PolicyEntry("coverage_s3", 3, (paths[0],), 2)
+            if strategy_id == 4:
+                return PolicyEntry("coverage_s4", 4, tuple(paths[:3]), 1)
+            if strategy_id == 5:
+                return PolicyEntry("coverage_s5", 5, tuple(paths[:3]), 1)
+            return PolicyEntry("coverage_s2", 2, (paths[0],), 1)
+
+        # 正常消息只在策略2/3之间动态选择：策略2抗丢包，策略3容量更高。
+        clean_paths = [
+            path_id for path_id in paths
+            if is_clean_strategy3_link(normalized_states.get(path_id, {}))
+        ]
+        if clean_paths:
+            path_id = clean_paths[segment_id % len(clean_paths)]
+            state = normalized_states.get(path_id, {})
+            strategy_id = 3
+        else:
+            path_id = paths[segment_id % len(paths)]
+            state = normalized_states.get(path_id, {})
+            strategy_id = strategy_for_link_state(state, hidden_len)
+        name = f"path{path_id}_dynamic_s{strategy_id}"
+        weight = 2 if strategy_id == 3 else reliability_weight_for_link(state)
+        return PolicyEntry(name, strategy_id, (path_id,), weight)
+
+    def per_link_strategy_status(self, path_states: dict) -> List[dict]:
+        """生成链路状态窗口使用的三条链路建议策略。"""
+
+        normalized_states = self.effective_path_states(path_states or {})
+        items = []
+        for path_id in range(3):
+            state = normalized_states.get(path_id, {})
+            strategy_id = strategy_for_link_state(state, int(self.args.chunk_size))
+            items.append(
+                {
+                    "path": path_id,
+                    "strategy_id": strategy_id,
+                    "strategy_label": strategy_label(strategy_id),
+                    "reason": "短数据低抖动可用" if strategy_id == 3 else "默认长数据优先可靠",
+                }
+            )
+        return items
 
     def set_current_strategy(self, **updates: Any) -> None:
         """更新当前正在执行的隐蔽传输策略状态。"""
@@ -310,7 +717,7 @@ class DemoService:
             self.session_id += 1
             self.sequence_index += 1
 
-            secret = text.encode("utf-8")
+            secret, input_meta = build_secret_payload(text)
             session_dir = RESULTS_DIR / f"session_{session_id:03d}"
             session_dir.mkdir(parents=True, exist_ok=True)
             input_file = session_dir / "input_secret.bin"
@@ -321,41 +728,47 @@ class DemoService:
             control_dir = session_dir / "control"
             control_dir.mkdir(parents=True, exist_ok=True)
             input_file.write_bytes(secret)
+            (session_dir / "input_meta.json").write_text(
+                json.dumps(input_meta, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
 
-            path_states = self.read_latest_int_state()
-            plan = self.build_demo_plan(secret, path_states)
-            proxy_plan = write_proxy_plan(
+            initial_path_states = self.read_latest_int_state()
+            base_port = int(self.args.base_dport) + (sequence_index % 8) * 1024
+            estimated_segments = max(1, (len(secret) + max(1, int(self.args.chunk_size)) - 1) // max(1, int(self.args.chunk_size)))
+            if base_port + estimated_segments + 2 > 65535:
+                raise ValueError("本次输入太长，预留 UDP 端口不足，请分批发送")
+            proxy_plan = write_initial_dynamic_proxy_plan(
                 proxy_plan_file,
                 secret,
-                plan,
-                int(self.args.base_dport) + sequence_index * 32,
+                base_port,
                 int(self.args.chunk_size),
             )
-            write_policy_plan(
-                rule_plan_file,
-                plan,
-                extra={
-                    "source": "user_demo_topology_service_proxy",
-                    "input_path_states": path_states,
-                    "sequence_index": sequence_index,
-                    "secret_bytes": len(secret),
-                    "proxy_plan_file": str(proxy_plan_file),
-                },
+            rule_plan_file.write_text(
+                json.dumps(
+                    {
+                        "entries": [],
+                        "source": "user_demo_topology_service_dynamic_proxy",
+                        "mode": "chunk_level_dynamic_replanning",
+                        "initial_path_states": initial_path_states,
+                        "sequence_index": sequence_index,
+                        "secret_bytes": len(secret),
+                        "input_mode": input_meta.get("input_mode"),
+                        "bit_length": input_meta.get("bit_length"),
+                        "proxy_plan_file": str(proxy_plan_file),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
             )
 
-            plan_dicts = [entry.to_dict() for entry in plan]
+            plan_dicts: List[dict] = []
+            actual_entries: List[PolicyEntry] = []
+            dynamic_plan_records: List[dict] = []
             proxy_segments = list(proxy_plan["segments"])
-            proxy_plan_text = short_plan(
-                [
-                    {
-                        "strategy_id": int(segment["strategy_id"]),
-                        "paths": [int(path) for path in segment.get("paths", [])],
-                        "weight": int(segment.get("weight", 1)),
-                    }
-                    for segment in proxy_segments
-                ]
-            )
-            receive_timeout = max(int(self.args.timeout), 45 + len(proxy_segments) * 8)
+            proxy_plan_text = "等待每个chunk开始前按最新INT状态动态选择"
+            receive_timeout = max(18, min(int(self.args.timeout), 25 + len(proxy_segments) * 4))
 
             self.set_current_strategy(
                 active=True,
@@ -368,6 +781,9 @@ class DemoService:
                 paths=[],
                 packets=0,
                 input_bytes=len(secret),
+                input_mode=input_meta.get("input_mode"),
+                input_bits=input_meta.get("bit_length"),
+                segments_total=len(proxy_segments),
                 expected_packets=0,
                 plan=plan_dicts,
                 plan_text=proxy_plan_text,
@@ -385,7 +801,7 @@ class DemoService:
                 receiver_pid = self.h2.cmd(
                     f"cd {PROJECT_ROOT} && python3 experiments/udp_covert_proxy.py plan-receiver "
                     f"--plan-file {proxy_plan_file} --iface h2-eth0 --forward-ip 127.0.0.1 "
-                    f"--forward-port 5201 --timeout {receive_timeout} --max-idle 6 "
+                    f"--forward-port 5201 --timeout {receive_timeout} --max-idle 1.5 "
                     f"--hidden-output {output_file} "
                     f"--summary {session_dir}/receiver_summary.json "
                     f"> {session_dir}/receiver_stdout.log 2>&1 & echo $!"
@@ -396,7 +812,7 @@ class DemoService:
                     f"--plan-file {proxy_plan_file} --listen-ip 127.0.0.1 --listen-port 6000 "
                     f"--remote-ip 10.0.1.2 --src-ip 10.0.1.1 --iface h1-eth0 "
                     f"--dst-mac 00:00:00:00:00:02 --plain-remote-port {proxy_plan['plain_ports'][0]} "
-                    f"--control-dir {control_dir} --max-idle 5 "
+                    f"--control-dir {control_dir} --max-idle 1.0 "
                     f"--summary {session_dir}/sender_summary.json "
                     f"> {session_dir}/sender_stdout.log 2>&1 & echo $!"
                 ).strip().splitlines()[-1]
@@ -407,17 +823,69 @@ class DemoService:
                     f"-l {int(self.args.forward_iperf_len)} -t {receive_timeout} -i 1 "
                     f"> {session_dir}/iperf_client_h1.log 2>&1 & echo $!"
                 ).strip().splitlines()[-1]
+                time.sleep(1.0)
 
                 for segment in proxy_segments:
                     segment_id = int(segment["segment_id"])
-                    strategy_id = int(segment["strategy_id"])
-                    paths = [int(path) for path in segment.get("paths", [])]
+                    wait_for_segment_ready(control_dir, segment_id, timeout_s=float(receive_timeout))
+
+                    latest_path_states = self.read_latest_int_state()
+                    hidden_chunk = bytes.fromhex(str(segment.get("hidden_hex", "")))
+                    entry = self.choose_dynamic_entry(
+                        segment_id,
+                        latest_path_states,
+                        len(hidden_chunk),
+                    )
+                    proxy_plan = update_dynamic_proxy_segment(
+                        proxy_plan_file,
+                        segment_id,
+                        entry,
+                        hidden_chunk,
+                        latest_path_states,
+                    )
+                    updated_segment = next(
+                        item for item in proxy_plan["segments"]
+                        if int(item["segment_id"]) == segment_id
+                    )
+                    strategy_id = int(updated_segment["strategy_id"])
+                    paths = [int(path) for path in updated_segment.get("paths", [])]
+                    actual_entries.append(entry)
+                    plan_dicts = [item.to_dict() for item in actual_entries]
+                    proxy_plan_text = short_plan(plan_dicts)
+                    dynamic_record = {
+                        "segment_id": segment_id,
+                        "strategy_id": strategy_id,
+                        "paths": paths,
+                        "weight": int(updated_segment.get("weight", 1)),
+                        "sequence_num": int(updated_segment.get("sequence_num", 0)),
+                        "remote_port": int(updated_segment.get("remote_port", 0)),
+                        "hidden_hex": hidden_chunk.hex(),
+                        "strategy_config": updated_segment.get("strategy_config", {}),
+                        "path_states": latest_path_states,
+                        "selected_at": time.time(),
+                    }
+                    dynamic_plan_records.append(dynamic_record)
+                    write_policy_plan(
+                        rule_plan_file,
+                        actual_entries,
+                        extra={
+                            "source": "user_demo_topology_service_dynamic_proxy",
+                            "mode": "chunk_level_dynamic_replanning",
+                            "initial_path_states": initial_path_states,
+                            "dynamic_segments": dynamic_plan_records,
+                            "sequence_index": sequence_index,
+                            "secret_bytes": len(secret),
+                            "input_mode": input_meta.get("input_mode"),
+                            "bit_length": input_meta.get("bit_length"),
+                            "proxy_plan_file": str(proxy_plan_file),
+                        },
+                    )
                     self.set_current_strategy(
                         active=True,
                         stage="proxy_sending_segment",
                         message=(
                             f"session {session_id} segment {segment_id} 正在真实 UDP 业务流上"
-                            f"挂载策略{strategy_id}，路径={paths}"
+                            f"挂载{strategy_label(strategy_id)}，路径={paths}"
                         ),
                         session_id=session_id,
                         chunk_id=segment_id,
@@ -425,21 +893,21 @@ class DemoService:
                         strategy_name=f"proxy_segment_{segment_id}",
                         paths=paths,
                         packets=0,
-                        encoded_bytes=int(segment.get("expected_bytes", 0)),
-                        dport=int(segment.get("remote_port", 0)),
-                        sequence_num=int(segment.get("sequence_num", 0)),
+                        encoded_bytes=int(updated_segment.get("expected_bytes", 0)),
+                        dport=int(updated_segment.get("remote_port", 0)),
+                        sequence_num=int(updated_segment.get("sequence_num", 0)),
+                        strategy_config=updated_segment.get("strategy_config", {}),
                         plan=plan_dicts,
                         plan_text=proxy_plan_text,
                         session_dir=str(session_dir),
                     )
-                    wait_for_segment_ready(control_dir, segment_id, timeout_s=float(receive_timeout))
                     configure_s1_for_entry(strategy_id, paths)
                     allow_segment(control_dir, segment_id)
 
                 self.set_current_strategy(
                     active=True,
                     stage="proxy_waiting_receiver",
-                    message=f"session {session_id} 已完成发送，正在等待 h2 代理解码",
+                    message=f"session {session_id} 已完成隐蔽挂载，业务流短暂继续后等待 h2 代理解码",
                     session_id=session_id,
                     chunk_id=None,
                     strategy_id=None,
@@ -450,9 +918,17 @@ class DemoService:
                     plan_text=proxy_plan_text,
                     session_dir=str(session_dir),
                 )
-                wait_background(self.h1, sender_pid, receive_timeout + 15)
-                wait_background(self.h2, receiver_pid, receive_timeout + 15)
-                wait_background(self.h1, iperf_client_pid, receive_timeout + 15)
+                all_segments_done = wait_for_all_segments_done(control_dir, timeout_s=8.0)
+                receiver_done_before_stop = False
+                time.sleep(0.2)
+                stop_background(self.h1, iperf_client_pid)
+                wait_background(self.h1, sender_pid, 20)
+                wait_background(self.h2, receiver_pid, 20)
+                wait_background(self.h1, iperf_client_pid, 5)
+                sender_done_before_summary = wait_for_json_complete(
+                    session_dir / "sender_summary.json",
+                    timeout_s=10.0,
+                )
             finally:
                 stop_background(self.h1, sender_pid)
                 stop_background(self.h2, receiver_pid)
@@ -463,6 +939,8 @@ class DemoService:
 
             sender_summary_path = session_dir / "sender_summary.json"
             receiver_summary_path = session_dir / "receiver_summary.json"
+            sender_done_after_stop = wait_for_json_complete(sender_summary_path, timeout_s=20.0)
+            receiver_done_after_stop = wait_for_json_success(receiver_summary_path, timeout_s=5.0)
             sender_summary = (
                 json.loads(sender_summary_path.read_text(encoding="utf-8"))
                 if sender_summary_path.exists()
@@ -474,27 +952,58 @@ class DemoService:
                 else {"success": False}
             )
             decoded = output_file.read_bytes() if output_file.exists() else b""
-            hidden_match = decoded == secret
+            decoded_text = display_decoded_payload(decoded, input_meta)
+            expected_bits = expected_display_bits(secret, input_meta)
+            actual_bits = decoded_display_bits(decoded, input_meta)
+            error_stats = bit_error_stats(expected_bits, actual_bits)
+            hidden_match = actual_bits == expected_bits
             iperf_server_log = session_dir / "iperf_server_h2.log"
             iperf_text = iperf_server_log.read_text(encoding="utf-8", errors="ignore") if iperf_server_log.exists() else ""
             iperf_server_received = "datagrams" in iperf_text.lower() or "sec" in iperf_text.lower()
+            strategies_seen = sorted({int(item["strategy_id"]) for item in dynamic_plan_records})
+            paths_seen = sorted({int(path) for item in dynamic_plan_records for path in item.get("paths", [])})
+            strategy_changed = len({int(item["strategy_id"]) for item in dynamic_plan_records}) > 1
+            path_changed = len({tuple(item.get("paths", [])) for item in dynamic_plan_records}) > 1
+            sender_complete = bool(sender_summary.get("complete")) or bool(all_segments_done) or bool(sender_done_after_stop)
+            receiver_success = bool(receiver_summary.get("success")) or bool(receiver_done_after_stop)
             result = {
-                "success": bool(sender_summary.get("complete"))
-                and bool(receiver_summary.get("success"))
+                "success": sender_complete
+                and receiver_success
                 and hidden_match
                 and iperf_server_received,
                 "hidden_match": hidden_match,
+                "sender_complete": sender_complete,
+                "receiver_success": receiver_success,
                 "session_id": session_id,
                 "sequence_index": sequence_index,
                 "input_text": text,
-                "decoded_text": decoded.decode("utf-8", errors="replace"),
+                "decoded_text": decoded_text,
+                "input_mode": input_meta.get("input_mode"),
+                "input_display": input_meta.get("display_input", text),
+                "input_bits": input_meta.get("bit_length"),
                 "input_bytes": len(secret),
                 "decoded_bytes": len(decoded),
+                "segments_total": len(proxy_segments),
+                "bit_errors": error_stats["bit_errors"],
+                "total_bits": error_stats["total_bits"],
+                "received_bits": error_stats["received_bits"],
+                "bit_error_rate": error_stats["bit_error_rate"],
                 "expected_packets": sum(int(item.get("covert_business_packets", 0)) for item in sender_summary.get("segments", [])),
                 "plan": plan_dicts,
                 "plan_text": proxy_plan_text,
                 "proxy_plan": proxy_plan,
-                "path_states_used": path_states,
+                "dynamic_segments": dynamic_plan_records,
+                "strategies_seen": strategies_seen,
+                "paths_seen": paths_seen,
+                "all_six_strategies_seen": set(strategies_seen) == {0, 1, 2, 3, 4, 5},
+                "strategy_changed_during_message": strategy_changed,
+                "path_changed_during_message": path_changed,
+                "all_segments_done_marker": all_segments_done,
+                "receiver_done_before_stop": receiver_done_before_stop,
+                "sender_done_before_summary": sender_done_before_summary,
+                "sender_done_after_stop": sender_done_after_stop,
+                "receiver_done_after_stop": receiver_done_after_stop,
+                "path_states_used": initial_path_states,
                 "sender_summary": sender_summary,
                 "receiver_summary": receiver_summary,
                 "iperf_server_received": iperf_server_received,
@@ -511,11 +1020,18 @@ class DemoService:
                 "success": result["success"],
                 "hidden_match": hidden_match,
                 "decoded_text": result["decoded_text"],
+                "input_mode": input_meta.get("input_mode"),
                 "input_bytes": len(secret),
                 "decoded_bytes": len(decoded),
+                "segments_total": len(proxy_segments),
+                "bit_error_rate": result["bit_error_rate"],
                 "expected_packets": result["expected_packets"],
                 "plan": plan_dicts,
                 "plan_text": proxy_plan_text,
+                "strategies_seen": strategies_seen,
+                "paths_seen": paths_seen,
+                "strategy_changed_during_message": strategy_changed,
+                "path_changed_during_message": path_changed,
                 "session_dir": str(session_dir),
                 "timestamp": time.time(),
             }
@@ -571,6 +1087,7 @@ class DemoService:
             "metric_sample_counts": int_summary.get("metric_sample_counts", {}),
             "suggested_plan": plan_dicts,
             "suggested_plan_text": short_plan(plan_dicts),
+            "per_link_strategy": self.per_link_strategy_status(path_states),
             "link_config": self.link_config,
             "latest_results": self.latest_results[-20:],
             "current_strategy": self.current_strategy,
@@ -701,14 +1218,56 @@ class ThreadedServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
 
 
+def request_existing_service_shutdown(host: str, port: int, timeout_s: float = 8.0) -> bool:
+    """如果旧演示服务占用端口，则请求它优雅退出。"""
+
+    try:
+        with socket.create_connection((host, int(port)), timeout=1.0) as sock:
+            sock.sendall(b'{"action":"shutdown"}\n')
+            sock.settimeout(1.0)
+            try:
+                sock.recv(4096)
+            except socket.timeout:
+                pass
+    except OSError:
+        return False
+
+    deadline = time.time() + float(timeout_s)
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((host, int(port)), timeout=0.2):
+                time.sleep(0.2)
+        except OSError:
+            return True
+    return False
+
+
+def create_server(args: argparse.Namespace, service: DemoService) -> ThreadedServer:
+    """先占住控制端口，再启动 Mininet，避免端口冲突后白启动拓扑。"""
+
+    try:
+        server = ThreadedServer((args.host, args.port), RequestHandler)
+    except OSError as exc:
+        if exc.errno != errno.EADDRINUSE:
+            raise
+        print(f"[topology] 端口 {args.host}:{args.port} 已被旧演示服务占用，尝试请求旧服务退出...")
+        if not request_existing_service_shutdown(args.host, int(args.port)):
+            raise RuntimeError(
+                f"端口 {args.host}:{args.port} 仍被占用。"
+                "请先执行：python3 experiments/user_demo/demo_client.py shutdown"
+            ) from exc
+        server = ThreadedServer((args.host, args.port), RequestHandler)
+    server.service = service  # type: ignore[attr-defined]
+    return server
+
+
 def main() -> int:
     args = parse_args()
     service = DemoService(args)
     server = None
     try:
+        server = create_server(args, service)
         service.start()
-        server = ThreadedServer((args.host, args.port), RequestHandler)
-        server.service = service  # type: ignore[attr-defined]
         print(f"[topology] 用户演示服务已启动：{args.host}:{args.port}")
         print("[topology] 其他窗口现在可以运行 sender_window.py / receiver_window.py / link_status_window.py")
         server.serve_forever()
