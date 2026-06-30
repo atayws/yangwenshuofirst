@@ -36,7 +36,7 @@ path2: s1-eth4 <-> s2-eth4，默认 30ms
 
 1. h1/h2 正常通信，例如 `iperf -u`。
 2. INT source 交换机按采样间隔从真实业务流中选择一个业务包。
-3. source 在该业务包的 IPv4 头后临时插入 `INT shim + probe_data`，并把原始 `protocol/totalLen` 记录在 shim 中。
+3. source 在该业务包的 IPv4 头后临时插入 `compact INT shim + probe_data`，shim 只记录原始 `protocol`、跳数和 `trace_id`；IPv4 长度在终点按 INT 实际长度扣回去。
 4. 该业务包携带 INT 只穿过 s1-s2 之间的交换机间链路。
 5. INT terminal 交换机补齐本端 probe_data，用本地组播复制两份：一份剥离 INT 并恢复成原业务包交给终端，另一份转换成 UDP/50100 INT 报告交给本地 Python 程序。
 6. Python 接收程序根据连续报告计算每条路径的时延、丢包率、相对带宽负载和队列深度。

@@ -847,13 +847,24 @@ def build_router(args: argparse.Namespace) -> StrategyReceiverRouter:
 
 
 def expected_timing_units(args: argparse.Namespace) -> int:
-    """计算策略0/1当前隐蔽帧允许出现的最大符号数，降低普通业务误判。"""
+    """计算策略0/1当前隐蔽帧允许出现的最大承载包编号，降低普通业务误判。
+
+    两字节时序同步标签中的 symbol_index 不是隐蔽符号编号，而是策略编码后
+    的承载包编号。策略0每 1 bit 需要滑动 4 包窗口，策略1每 2 bit 需要
+    一个滑动窗口，因此最后几个尾包的编号会大于隐蔽符号数量。这里按
+    编码器的承载包数量放宽过滤，否则接收端会把尾包当普通业务包剥离，
+    导致策略0/1只能解出前半段。
+    """
 
     if args.expected_bytes is None:
         return 255
+    block_symbols = 8
     if int(args.strategy) == 0:
-        return int(args.expected_bytes) * 8
-    return int(args.expected_bytes) * 4
+        symbols = int(args.expected_bytes) * 8
+    else:
+        symbols = int(args.expected_bytes) * 4
+    blocks = (symbols + block_symbols - 1) // block_symbols
+    return symbols + 3 * blocks
 
 
 def mark_current_strategy_packet(
@@ -942,7 +953,7 @@ def run_socket_receiver(args: argparse.Namespace) -> int:
 
     if int(args.strategy) not in TIMING_STRATEGIES:
         raise ValueError("socket 接收模式只适合策略0/1；策略2/3/4/5请使用 --receive-mode sniff")
-    expected_units = args.expected_bytes * (8 if args.strategy == 0 else 4) if args.expected_bytes else 255
+    expected_units = expected_timing_units(args)
     strategy = get_strategy(
         StrategyID(int(args.strategy)),
         config=build_strategy_config(args, getattr(args, "expected_bytes", None)),

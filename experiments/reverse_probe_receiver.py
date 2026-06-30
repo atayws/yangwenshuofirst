@@ -74,6 +74,7 @@ def main() -> int:
                 "delay_us": metric.delay_us,
                 "jitter_us": metric.jitter_us,
                 "loss_rate": metric.loss_rate,
+                "sample_loss_rate": metric.sample_loss_rate,
                 "bw_bytes_per_s": metric.bw_bytes_per_s,
                 "qdepth": metric.qdepth,
                 "interval_us": metric.interval_us,
@@ -107,7 +108,9 @@ def main() -> int:
     def write_result():
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(build_result(), ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp_path = output_path.with_suffix(output_path.suffix + ".tmp")
+        tmp_path.write_text(json.dumps(build_result(), ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp_path.replace(output_path)
 
     def handle_int_payload(int_payload):
         nonlocal parsed_reports
@@ -121,8 +124,8 @@ def main() -> int:
             int_reports.append(
                 {
                     "hop_count": report.hop_count,
+                    "flags": report.flags,
                     "original_protocol": report.original_protocol,
-                    "original_total_len": report.original_total_len,
                     "trace_id": report.trace_id,
                     "hops": [
                         {
@@ -151,6 +154,8 @@ def main() -> int:
                 loss_rate=metric.loss_rate,
                 bw_bytes_per_s=metric.bw_bytes_per_s,
                 qdepth=metric.qdepth,
+                sent_delta=metric.sent_delta,
+                recv_delta=metric.recv_delta,
             )
             raw_metrics[link_id] = metric
 

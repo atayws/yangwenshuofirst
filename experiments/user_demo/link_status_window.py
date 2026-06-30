@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="链路状态与建议策略窗口")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--interval", type=float, default=2.0)
+    parser.add_argument("--interval", type=float, default=1.0)
     parser.add_argument("--no-clear", action="store_true")
     return parser.parse_args()
 
@@ -126,22 +126,25 @@ def draw(status: dict, no_clear: bool) -> None:
     print(f"业务流状态 iperf_ok: {status.get('iperf_ok')}  INT成功: {status.get('int_success')}  INT报告数: {status.get('int_parsed_reports')}")
     print(f"结果目录: {status.get('results_dir')}")
     print()
-    print("路径  设置delay/loss        INT delay   jitter    loss       bw利用率   qdepth   样本")
-    print("-" * 86)
+    print("路径  设置delay/loss        最新delay 最新loss   窗口delay 窗口loss   窗口收/发包     bw利用率   样本")
+    print("-" * 104)
     states = status.get("path_states", {}) or {}
+    raw_metrics = status.get("raw_metrics", {}) or {}
     counts = status.get("metric_sample_counts", {}) or {}
     configs = status.get("link_config", {}) or {}
     for path_id in range(3):
         state = states.get(str(path_id), {}) or states.get(path_id, {}) or {}
+        raw = raw_metrics.get(str(path_id), {}) or raw_metrics.get(path_id, {}) or {}
         config = configs.get(str(path_id), {}) or configs.get(path_id, {}) or {}
         print(
             f"链路{path_id + 1} "
             f"{fmt_float(config.get('delay_ms'), 1):>6}ms/{fmt_float(config.get('loss_percent'), 1):>5}% "
-            f"{fmt_float(state.get('delay_ms')):>10} "
-            f"{fmt_float(state.get('jitter_ms')):>8} "
-            f"{fmt_percent(state.get('loss_rate')):>9} "
+            f"{fmt_float(float(raw.get('delay_us', 0.0)) / 1000.0 if raw else None):>9} "
+            f"{fmt_percent(raw.get('loss_rate') if raw else None):>8} "
+            f"{fmt_float(state.get('delay_ms')):>9} "
+            f"{fmt_percent(state.get('loss_rate')):>8} "
+            f"{int(state.get('loss_recv_delta', 0) or 0):>5}/{int(state.get('loss_sent_delta', 0) or 0):<5} "
             f"{fmt_percent(state.get('bw_utilization')):>10} "
-            f"{fmt_float(state.get('qdepth_avg'), 1):>8} "
             f"{counts.get(str(path_id), counts.get(path_id, 0)):>6}"
         )
     print()

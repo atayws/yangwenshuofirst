@@ -20,7 +20,6 @@ from python.covert_strategies.protocol_high_reliability import (
 from python.covert_strategies.statistical_fusion import StatisticalFusionStrategy
 from python.covert_strategies.strategy_registry import get_strategy
 from python.covert_strategies.timing_sync_tag import (
-    ANCHOR_PHASE,
     parse_timing_tag,
 )
 
@@ -352,7 +351,7 @@ class StrategyReceiverRouter:
                     "strategy_id": tag.strategy_id,
                     "phase": tag.phase,
                     "symbol_index": tag.symbol_index,
-                    "is_anchor": tag.phase == ANCHOR_PHASE,
+                    "packet_index": tag.symbol_index,
                 }
             }
             return DetectionResult(
@@ -395,6 +394,14 @@ class StrategyReceiverRouter:
             "short_gap_ms",
             "long_gap_ms",
             "rank_gaps_ms",
+            "base_gap_ms",
+            "decision_threshold_ms",
+            "second_diff_delta_ms",
+            "threshold1_ms",
+            "threshold2_ms",
+            "score_step_ms",
+            "sliding_window_block_symbols",
+            "min_gap_ms",
             "min_relation_delta_ms",
             "min_rank_delta_ms",
         ):

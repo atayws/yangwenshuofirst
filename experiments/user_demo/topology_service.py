@@ -116,6 +116,23 @@ def stop_background(host, pid: str) -> None:
         host.cmd(f"kill {pid} >/dev/null 2>&1 || true")
 
 
+def cleanup_stale_demo_processes() -> None:
+    """清理上次异常退出遗留的用户演示后台进程。"""
+
+    patterns = [
+        "[e]xperiments/reverse_probe_receiver.py --timeout 86400",
+        "[i]perf -s -u -i 5",
+        "[i]perf -u -c 10.0.1.1",
+    ]
+    for pattern in patterns:
+        subprocess.run(
+            ["pkill", "-f", pattern],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+
+
 def path_sort_key(item: tuple[int, object]) -> tuple[float, float, float]:
     """根据 INT 状态排序路径，越小越适合轻量隐蔽策略。"""
 
@@ -178,30 +195,35 @@ def clamp_float(value: float, low: float, high: float) -> float:
 
 
 def timing_config_for_state(strategy_id: int, state: object) -> dict:
-    """根据 INT 的时延和抖动为策略0/1生成自适应时间间隔。"""
+    """根据 INT 的时延和抖动为策略0/1生成自适应二阶差分时序参数。"""
 
     jitter_ms = max(0.0, _state_value(state, "jitter_ms", 0.0))
     delay_ms = max(0.0, _state_value(state, "delay_ms", 0.0))
 
     if int(strategy_id) == 0:
-        guard = clamp_float(max(5.0, jitter_ms * 5.0, delay_ms * 0.10), 5.0, 50.0)
-        short_gap = clamp_float(max(8.0, jitter_ms * 8.0, delay_ms * 0.12), 8.0, 100.0)
-        long_gap = clamp_float(short_gap + max(guard * 2.8, short_gap * 1.10), short_gap + 12.0, 220.0)
+        threshold = clamp_float(max(2.0, jitter_ms * 3.0, delay_ms * 0.015), 2.0, 35.0)
+        base_gap = clamp_float(max(6.0, jitter_ms * 4.0, delay_ms * 0.04), 6.0, 80.0)
+        delta = clamp_float(max(threshold * 2.4, jitter_ms * 6.0, delay_ms * 0.04, 6.0), 6.0, 90.0)
         return {
-            "short_gap_ms": round(short_gap, 3),
-            "long_gap_ms": round(long_gap, 3),
-            "min_relation_delta_ms": round(max(3.0, guard), 3),
-            "max_jitter_tolerance_ms": round(max(8.0, guard * 1.5), 3),
+            "base_gap_ms": round(base_gap, 3),
+            "decision_threshold_ms": round(threshold, 3),
+            "second_diff_delta_ms": round(delta, 3),
+            "sliding_window_block_symbols": 4,
+            "max_jitter_tolerance_ms": round(max(8.0, threshold * 2.0), 3),
         }
 
     if int(strategy_id) == 1:
-        base_gap = clamp_float(max(12.0, jitter_ms * 6.0, delay_ms * 0.10), 12.0, 100.0)
-        separation = clamp_float(max(12.0, jitter_ms * 6.0, delay_ms * 0.08), 12.0, 80.0)
-        gaps = [base_gap, base_gap + separation, base_gap + separation * 2.5]
+        threshold1 = clamp_float(max(2.0, jitter_ms * 2.5, delay_ms * 0.012), 2.0, 25.0)
+        threshold2 = clamp_float(max(threshold1 * 2.8, jitter_ms * 5.0, delay_ms * 0.03), threshold1 * 2.2, 70.0)
+        score_step = clamp_float(max(threshold1 * 1.8, jitter_ms * 4.0, delay_ms * 0.025, 5.0), threshold1 * 1.2, threshold2)
+        base_gap = clamp_float(max(6.0, jitter_ms * 3.5, delay_ms * 0.035), 6.0, 70.0)
         return {
-            "rank_gaps_ms": [round(item, 3) for item in gaps],
-            "min_rank_delta_ms": round(max(7.0, separation * 0.55), 3),
-            "max_jitter_tolerance_ms": round(max(8.0, separation * 0.9), 3),
+            "base_gap_ms": round(base_gap, 3),
+            "threshold1_ms": round(threshold1, 3),
+            "threshold2_ms": round(threshold2, 3),
+            "score_step_ms": round(score_step, 3),
+            "sliding_window_block_symbols": 4,
+            "max_jitter_tolerance_ms": round(max(8.0, threshold1 * 2.0), 3),
         }
 
     return {}
@@ -459,6 +481,7 @@ class DemoService:
         self.sequence_index = 0
         self.services: Dict[str, Any] = {}
         self.latest_results: List[dict] = []
+        self.last_valid_int_summary: Dict[str, Any] = {}
         self.last_valid_path_states: Dict[int, dict] = {}
         self.link_config: Dict[int, dict] = {
             0: {"delay_ms": 5.0, "loss_percent": 0.0},
@@ -484,12 +507,39 @@ class DemoService:
     def int_output(self) -> Path:
         return RESULTS_DIR / "latest_int_summary.json"
 
+    def reset_int_summary(self) -> None:
+        """把 INT 状态文件重置为本次启动的空状态。"""
+
+        self.last_valid_int_summary = {}
+        self.last_valid_path_states = {}
+        initial_summary = {
+            "success": False,
+            "all_paths_ready": False,
+            "parsed_int_reports": 0,
+            "metric_sample_counts": {"0": 0, "1": 0, "2": 0},
+            "state_window_ms": 5000.0,
+            "source_swid": 2,
+            "sink_swid": 1,
+            "received_probe_packets": 0,
+            "probe_packets": [],
+            "int_reports": [],
+            "raw_metrics": {},
+            "path_states": {},
+            "started_at": time.time(),
+        }
+        self.int_output.parent.mkdir(parents=True, exist_ok=True)
+        self.int_output.write_text(
+            json.dumps(initial_summary, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
     def start(self) -> None:
         """启动拓扑、业务流和 INT 解析器。"""
 
         if os.geteuid() != 0:
             raise RuntimeError("topology_service.py 必须用 sudo 运行")
 
+        cleanup_stale_demo_processes()
         ensure_p4_json()
         if self.args.clean_results and RESULTS_DIR.exists():
             shutil.rmtree(RESULTS_DIR)
@@ -497,6 +547,7 @@ class DemoService:
             shutil.rmtree(LOG_DIR)
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
         LOG_DIR.mkdir(parents=True, exist_ok=True)
+        self.reset_int_summary()
 
         runtime_args = SimpleNamespace(
             json=str(P4_JSON),
@@ -536,7 +587,7 @@ class DemoService:
 
         int_pid = self.h1.cmd(
             f"cd {PROJECT_ROOT} && python3 experiments/reverse_probe_receiver.py "
-            f"--timeout 86400 --window-ms 60000 --write-interval 1 "
+            f"--timeout 86400 --window-ms 5000 --write-interval 1 "
             f"--output {self.int_output} "
             f"> {RESULTS_DIR}/int_receiver.log 2>&1 & echo $!"
         ).strip().splitlines()[-1]
@@ -559,11 +610,14 @@ class DemoService:
         """读取最新 INT 解析结果。"""
 
         if not self.int_output.exists():
-            return {}
+            return self.last_valid_int_summary
         try:
-            return json.loads(self.int_output.read_text(encoding="utf-8"))
+            summary = json.loads(self.int_output.read_text(encoding="utf-8"))
+            if summary:
+                self.last_valid_int_summary = summary
+            return summary
         except json.JSONDecodeError:
-            return {}
+            return self.last_valid_int_summary
 
     def read_latest_int_state(self) -> dict:
         """读取最新 path_states。"""
@@ -1084,6 +1138,7 @@ class DemoService:
             "int_success": bool(int_summary.get("success")),
             "int_parsed_reports": int_summary.get("parsed_int_reports", 0),
             "path_states": path_states,
+            "raw_metrics": int_summary.get("raw_metrics", {}),
             "metric_sample_counts": int_summary.get("metric_sample_counts", {}),
             "suggested_plan": plan_dicts,
             "suggested_plan_text": short_plan(plan_dicts),

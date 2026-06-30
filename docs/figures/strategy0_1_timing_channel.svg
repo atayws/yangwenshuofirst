@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="760" viewBox="0 0 1500 760">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#30343b"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2364aa"/>
+    </marker>
+    <style>
+      .title { font: 700 34px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #1f2933; }
+      .subtitle { font: 400 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .label { font: 600 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #1f2933; }
+      .small { font: 400 17px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #374151; }
+      .tiny { font: 400 15px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .formula { font: 600 21px "Cambria Math", "Times New Roman", "Microsoft YaHei", serif; fill: #111827; }
+      .red { fill: #b42318; }
+      .blue { fill: #2364aa; }
+      .green { fill: #087f5b; }
+      .line { stroke: #30343b; stroke-width: 3; fill: none; }
+      .thin { stroke: #6b7280; stroke-width: 2; fill: none; }
+      .dash { stroke-dasharray: 8 7; }
+      .packet { fill: #ffffff; stroke: #1f2933; stroke-width: 2.5; rx: 8; }
+      .packet-fill { fill: #edf6ff; stroke: #2364aa; stroke-width: 2.5; rx: 8; }
+      .window1 { fill: rgba(35,100,170,0.06); stroke: #2364aa; stroke-width: 3; stroke-dasharray: 10 7; rx: 14; }
+      .window2 { fill: rgba(8,127,91,0.05); stroke: #087f5b; stroke-width: 3; stroke-dasharray: 8 7; rx: 14; }
+      .box { fill: #ffffff; stroke: #d0d7de; stroke-width: 2; rx: 10; }
+      .note { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 2; rx: 10; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="760" fill="#ffffff"/>
+
+  <text x="70" y="62" class="title">策略0/1：基于连续业务包间隔关系的时序隐蔽信道</text>
+  <text x="70" y="98" class="subtitle">发送端不单独构造隐蔽流，而是在真实业务包序列中选择连续承载包，通过包间隔变化携带隐蔽比特。</text>
+
+  <line x1="105" y1="255" x2="1395" y2="255" class="line" marker-end="url(#arrow)"/>
+  <text x="1332" y="238" class="small">时间轴</text>
+
+  <!-- Packet positions -->
+  <g id="packets">
+    <rect x="105" y="202" width="126" height="78" class="packet-fill"/>
+    <text x="138" y="236" class="label">P1</text>
+    <text x="126" y="263" class="tiny">业务包</text>
+
+    <rect x="345" y="202" width="126" height="78" class="packet-fill"/>
+    <text x="378" y="236" class="label">P2</text>
+    <text x="366" y="263" class="tiny">业务包</text>
+
+    <rect x="585" y="202" width="126" height="78" class="packet-fill"/>
+    <text x="618" y="236" class="label">P3</text>
+    <text x="606" y="263" class="tiny">业务包</text>
+
+    <rect x="825" y="202" width="126" height="78" class="packet-fill"/>
+    <text x="858" y="236" class="label">P4</text>
+    <text x="846" y="263" class="tiny">业务包</text>
+
+    <rect x="1065" y="202" width="126" height="78" class="packet"/>
+    <text x="1098" y="236" class="label">P5</text>
+    <text x="1086" y="263" class="tiny">业务包</text>
+
+    <rect x="1305" y="202" width="126" height="78" class="packet"/>
+    <text x="1338" y="236" class="label">P6</text>
+    <text x="1326" y="263" class="tiny">业务包</text>
+  </g>
+
+  <!-- Intervals -->
+  <g id="intervals">
+    <line x1="231" y1="192" x2="345" y2="192" class="thin" marker-end="url(#arrow)"/>
+    <text x="275" y="174" class="label">t1</text>
+
+    <line x1="471" y1="192" x2="585" y2="192" class="thin" marker-end="url(#arrow)"/>
+    <text x="515" y="174" class="label">t2</text>
+
+    <line x1="711" y1="192" x2="825" y2="192" class="thin" marker-end="url(#arrow)"/>
+    <text x="755" y="174" class="label">t3</text>
+
+    <line x1="951" y1="192" x2="1065" y2="192" class="thin" marker-end="url(#arrow)"/>
+    <text x="995" y="174" class="label">t4</text>
+
+    <line x1="1191" y1="192" x2="1305" y2="192" class="thin" marker-end="url(#arrow)"/>
+    <text x="1235" y="174" class="label">t5</text>
+  </g>
+
+  <!-- Sliding windows -->
+  <rect x="84" y="180" width="888" height="130" class="window1"/>
+  <text x="112" y="325" class="small blue">窗口1：取 P1-P4，使用 t1、t2、t3 解出第1个隐蔽符号</text>
+
+  <rect x="324" y="335" width="888" height="112" class="window2"/>
+  <line x1="408" y1="335" x2="408" y2="280" class="thin dash"/>
+  <line x1="648" y1="335" x2="648" y2="280" class="thin dash"/>
+  <line x1="888" y1="335" x2="888" y2="280" class="thin dash"/>
+  <line x1="1128" y1="335" x2="1128" y2="280" class="thin dash"/>
+  <text x="352" y="410" class="small green">窗口2：滑动一包，取 P2-P5，使用 t2、t3、t4 解出第2个隐蔽符号</text>
+
+  <!-- Calculation box -->
+  <rect x="70" y="485" width="640" height="205" class="box"/>
+  <text x="100" y="525" class="label">时延差计算</text>
+  <text x="100" y="565" class="formula">Δ1 = t1 - t2，Δ2 = t2 - t3</text>
+  <text x="100" y="603" class="formula">Score = Δ1 - Δ2 = t1 - 2t2 + t3</text>
+  <text x="100" y="645" class="small">策略0（二值）：Score &lt; -θ 表示 0；Score &gt; +θ 表示 1</text>
+  <text x="100" y="675" class="tiny">其中 θ 由链路时延抖动估计得到，抖动越大，判决阈值越大。</text>
+
+  <!-- Strategy 1 box -->
+  <rect x="760" y="485" width="670" height="205" class="note"/>
+  <text x="790" y="525" class="label">策略1：四区间高容量判决</text>
+  <text x="790" y="565" class="formula">Score &lt; -θ2 → 00</text>
+  <text x="1040" y="565" class="formula">-θ2 ≤ Score &lt; -θ1 → 01</text>
+  <text x="790" y="607" class="formula">+θ1 &lt; Score ≤ +θ2 → 10</text>
+  <text x="1040" y="607" class="formula">Score &gt; +θ2 → 11</text>
+  <text x="790" y="648" class="small">同样使用4包滑动窗口，但每个窗口承载2 bit，容量高于策略0。</text>
+  <text x="790" y="678" class="tiny">接收端根据同步标签定位承载包，再按窗口顺序恢复隐蔽比特流。</text>
+
+  <!-- Footer annotations -->
+  <line x1="168" y1="308" x2="168" y2="350" class="thin dash"/>
+  <line x1="408" y1="308" x2="408" y2="350" class="thin dash"/>
+  <line x1="648" y1="308" x2="648" y2="350" class="thin dash"/>
+  <line x1="888" y1="308" x2="888" y2="350" class="thin dash"/>
+  <line x1="1128" y1="308" x2="1128" y2="350" class="thin dash"/>
+
+  <text x="70" y="735" class="tiny">注：图中 P1-P6 均为正常业务包；隐蔽信息由发送端控制承载包间隔产生，接收端只需记录到达时间并进行滑动窗口判决。</text>
+</svg>

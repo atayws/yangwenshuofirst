@@ -21,7 +21,7 @@ from python.control_plane.path_state_db import PathStateDB
 
 
 PROBE_DATA_SIZE = 48
-INT_SHIM_SIZE = 12
+INT_SHIM_SIZE = 4
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,7 +115,8 @@ def build_report(link_id: int, sample_index: int, direction: str = "forward") ->
         qdepth=[2, 8, 16][link_id],
     )
 
-    shim = struct.pack("!BBBBBBHHH", 1, 2, 48, 2, 0xFF, 17, 64, 1, link_id + 1)
+    shim0 = (1 << 6) | (0 << 4) | 2
+    shim = struct.pack("!BBH", shim0, 17, link_id + 1)
     assert len(shim) == INT_SHIM_SIZE
     return shim + source + sink
 
@@ -150,6 +151,8 @@ def main() -> int:
                     loss_rate=metric.loss_rate,
                     bw_bytes_per_s=metric.bw_bytes_per_s,
                     qdepth=metric.qdepth,
+                    sent_delta=metric.sent_delta,
+                    recv_delta=metric.recv_delta,
                 )
                 raw_metrics[mid] = metric
 
@@ -162,8 +165,12 @@ def main() -> int:
             "delay_us": metric.delay_us,
             "jitter_us": metric.jitter_us,
             "loss_rate": metric.loss_rate,
+            "sample_loss_rate": metric.sample_loss_rate,
             "bw_bytes_per_s": metric.bw_bytes_per_s,
             "qdepth": metric.qdepth,
+            "sent_delta": metric.sent_delta,
+            "recv_delta": metric.recv_delta,
+            "sequence_gap": metric.sequence_gap,
         }
         for path_id, metric in raw_metrics.items()
     }

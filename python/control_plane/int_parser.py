@@ -2,7 +2,7 @@
 INT 报告解析与链路指标计算。
 
 P4 交换机发给 h1 的 INT 报告格式为：
-IPv4(protocol=0xFD) | int_shim_t | probe_data_t[hop_count] | 原业务负载
+IPv4(protocol=0xFD) | compact_int_shim_t | probe_data_t[hop_count] | 原业务负载
 解析器只读取 INT shim 和 probe_data，后面的原业务负载会被忽略。
 """
 
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 PROBE_DATA_SIZE = 48  # probe_data_t 的固定长度，单位为字节。
-INT_SHIM_SIZE = 12    # int_shim_t 的固定长度，单位为字节。
+INT_SHIM_SIZE = 4     # compact_int_shim_t 的固定长度，单位为字节。
 
 
 @dataclass
@@ -42,6 +42,7 @@ class IntReport:
     original_protocol: int
     original_total_len: int
     domain_id: int
+    flags: int
     trace_id: int
     hops: List[HopSnapshot]
     receive_timestamp: float = 0.0
@@ -67,6 +68,7 @@ class LinkMetrics:
     byte_delta: int = 0
     sequence_id: int = 0
     sequence_gap: int = 0
+    sample_loss_rate: float = 0.0
     timestamp: float = 0.0
 
 
@@ -81,20 +83,13 @@ class IntParser:
             return None
 
         try:
-            (
-                ver,
-                _rep_res,
-                _hop_meta_len,
-                hop_count,
-                _inst_bm,
-                original_proto,
-                original_len,
-                domain_id,
-                trace_id,
-            ) = struct.unpack("!BBBBBBHHH", raw[:INT_SHIM_SIZE])
+            shim0, original_proto, trace_id = struct.unpack("!BBH", raw[:INT_SHIM_SIZE])
         except struct.error:
             return None
 
+        ver = (shim0 >> 6) & 0x03
+        flags = (shim0 >> 4) & 0x03
+        hop_count = shim0 & 0x0F
         hops = []
         offset = INT_SHIM_SIZE
         max_hops = min(hop_count, 4)
@@ -109,8 +104,9 @@ class IntParser:
             ver=ver,
             hop_count=hop_count,
             original_protocol=original_proto,
-            original_total_len=original_len,
-            domain_id=domain_id,
+            original_total_len=0,
+            domain_id=0,
+            flags=flags,
             trace_id=trace_id,
             hops=hops,
             receive_timestamp=time.time(),
@@ -175,6 +171,14 @@ class LinkMetricsCalculator:
         self._prev_jitter: Dict[int, float] = {}
         self._prev_seq: Dict[int, int] = {}
 
+    @staticmethod
+    def _counter_delta(current: int, previous: int, bits: int = 32) -> int:
+        """计算 P4 无符号累计计数器的差值，兼容计数器回绕。"""
+
+        if current >= previous:
+            return current - previous
+        return (1 << bits) - previous + current
+
     def compute(self, report: IntReport) -> Dict[int, LinkMetrics]:
         """计算当前报告对应的一条链路指标。"""
 
@@ -218,7 +222,7 @@ class LinkMetricsCalculator:
         if prev_source:
             lm.interval_us = float(source_hop.curr_time_egress - prev_source.curr_time_egress)
             if lm.interval_us > 0:
-                lm.byte_delta = max(0, source_hop.byte_egress - prev_source.byte_egress)
+                lm.byte_delta = self._counter_delta(source_hop.byte_egress, prev_source.byte_egress)
                 lm.bw_bytes_per_s = lm.byte_delta / (lm.interval_us / 1_000_000.0)
         elif source_hop.curr_time_egress > 0:
             # 第一条样本没有上一条快照，只能用交换机启动以来的累计值做初始估计。
@@ -231,18 +235,17 @@ class LinkMetricsCalculator:
             lm.sequence_gap = (report.trace_id - prev_seq) & 0xFFFF
             if lm.sequence_gap == 0:
                 lm.sequence_gap = 1
-            lm.sent_delta = lm.sequence_gap
-            lm.recv_delta = 1
-            lm.loss_rate = max(0.0, min(1.0, (lm.sequence_gap - 1) / lm.sequence_gap))
-        elif prev_source and prev_sink:
-            lm.sent_delta = max(0, source_hop.count_egress - prev_source.count_egress)
-            lm.recv_delta = max(0, sink_hop.count_ingress - prev_sink.count_ingress)
+            lm.sample_loss_rate = max(0.0, min(1.0, (lm.sequence_gap - 1) / lm.sequence_gap))
+
+        if prev_source and prev_sink:
+            lm.sent_delta = self._counter_delta(source_hop.count_egress, prev_source.count_egress)
+            lm.recv_delta = self._counter_delta(sink_hop.count_ingress, prev_sink.count_ingress)
             if lm.sent_delta > 0:
                 lm.loss_rate = max(0.0, min(1.0, (lm.sent_delta - lm.recv_delta) / lm.sent_delta))
         else:
             # 第一条样本只建立基准，不用累计端口计数推断丢包。
-            lm.sent_delta = 1
-            lm.recv_delta = 1
+            lm.sent_delta = 0
+            lm.recv_delta = 0
             lm.loss_rate = 0.0
 
         lm.qdepth = source_hop.qdepth

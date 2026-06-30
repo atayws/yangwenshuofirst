@@ -75,6 +75,8 @@ class INTCollector:
                 loss_rate=m.loss_rate,
                 bw_bytes_per_s=m.bw_bytes_per_s,
                 qdepth=m.qdepth,
+                sent_delta=m.sent_delta,
+                recv_delta=m.recv_delta,
             )
 
         for cb in self._callbacks:

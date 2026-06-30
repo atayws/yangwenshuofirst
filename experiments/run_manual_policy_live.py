@@ -115,7 +115,7 @@ def configure_s2_for_reverse_int() -> None:
         "register_write reg_rr_counter 0 0",
         "register_write reg_rr_current_path 0 0",
         "register_write reg_int_probe_mode 0 0",
-        "register_write reg_int_interval_us 0 10000",
+        "register_write reg_int_interval_us 0 500000",
         "register_write reg_next_sample_time 0 0",
         "register_write reg_int_enabled 0 1",
     ])

@@ -12,6 +12,11 @@ build/
 .claude/
 .codex/
 
+# Local extracted references / personal report forms
+doc_extracts/
+全日制工程硕士实践训练考核报告.doc
+硕士研究生学位论文中期检查表.doc
+
 # P4 compilation outputs
 p4/build/
 p4/*.json

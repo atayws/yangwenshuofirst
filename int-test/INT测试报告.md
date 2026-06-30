@@ -4,7 +4,7 @@
 ## 测试配置
 - 拓扑：h1 -- s1 == 三条链路 == s2 -- h2
 - 业务流：h2 作为 iperf client，h1 作为 iperf server，持续发送 UDP 业务流。
-- INT 采样间隔：10.0 ms。
+- INT 采样间隔：500.0 ms。
 - 本轮快速复测：轮询多路径 15 s，UDP 负载 2 Mbit/s，业务包长 1200 字节。
 - INT 方式：s2 在采样命中的真实业务包中 inline 插入 INT，s1 补齐两跳 probe_data 后剥离 INT 并恢复业务包，同时本地生成 UDP/50100 报告给 h1。
 - MTU：终端侧 1500，s1-s2 三条交换机间链路 1600。

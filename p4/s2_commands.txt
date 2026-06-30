@@ -46,7 +46,7 @@ mc_node_associate 101 2
 
 register_write reg_switch_id 0 2
 register_write reg_int_enabled 0 1
-register_write reg_int_interval_us 0 10000
+register_write reg_int_interval_us 0 500000
 register_write reg_next_sample_time 0 0
 register_write reg_int_terminal_swid 0 1
 register_write reg_int_dst_filter 0 167772417

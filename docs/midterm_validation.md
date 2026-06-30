@@ -403,7 +403,7 @@ register_write reg_path_mode 0 1
 register_write reg_fixed_path 0 0
 register_write reg_int_probe_mode 0 1
 register_write reg_int_fixed_probe_path 0 0
-register_write reg_int_interval_us 0 10000
+register_write reg_int_interval_us 0 500000
 register_write reg_next_sample_time 0 0
 register_write reg_int_enabled 0 1
 ```
@@ -418,7 +418,7 @@ register_write reg_rr_burst_size 0 12
 register_write reg_rr_counter 0 0
 register_write reg_rr_current_path 0 0
 register_write reg_int_probe_mode 0 0
-register_write reg_int_interval_us 0 10000
+register_write reg_int_interval_us 0 500000
 register_write reg_next_sample_time 0 0
 register_write reg_int_enabled 0 1
 ```

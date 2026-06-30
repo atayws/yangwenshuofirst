@@ -107,17 +107,15 @@ h2 业务包 -> s2 采样插入 INT -> s2-s1 链路携带 INT
 Ethernet | IPv4(protocol=0xFD) | INT shim | probe_data[hop_count] | 原业务负载
 ```
 
-INT shim 长度为 12 字节，包含：
+INT shim 采用紧凑 4 字节格式，位于 IPv4 头之后，包含：
 
-| 字段 | 说明 |
-|---|---|
-| `ver` | INT 版本。 |
-| `rep` | 报告标记，inline 业务包正常使用 `rep=0`。 |
-| `hop_meta_len` | 每跳遥测长度，当前为 48 字节。 |
-| `hop_count` | 已携带的 probe_data 数量。 |
-| `original_protocol` | 记录原 IPv4 协议号，终点交换机剥离 INT 时恢复。 |
-| `original_total_len` | 记录原 IPv4 长度，终点交换机剥离 INT 时恢复。 |
-| `trace_id` | 每路径递增序号，用于丢包估计。 |
+| 偏移 | 长度 | 字段 | 说明 |
+|---|---:|---|---|
+| 0 | 2 bit | `version` | INT 版本，当前为 1。 |
+| 0 | 2 bit | `flags` | 预留标记，inline 业务包正常为 0。 |
+| 0 | 4 bit | `hop_count` | 已携带的 `probe_data` 数量。 |
+| 1 | 1 字节 | `original_protocol` | 记录原 IPv4 协议号，终点交换机剥离 INT 时恢复。 |
+| 2 | 2 字节 | `trace_id` | 每路径递增序号，用于检查 INT 采样连续性。 |
 
 每跳 `probe_data` 固定 48 字节：
 
@@ -135,10 +133,10 @@ INT shim 长度为 12 字节，包含：
 
 1. 所有 IPv4 包经过 ingress/egress 时都会更新累计字节和包数寄存器。
 2. INT source 按 `reg_int_interval_us` 判断是否到达采样时间。
-3. 到达采样时间时，source 在当前真实业务包内插入 INT shim 和第一跳 probe_data，并保存原始 IPv4 `protocol/totalLen`。
+3. 到达采样时间时，source 在当前真实业务包内插入 4 字节 INT shim 和第一跳 probe_data，并保存原始 IPv4 `protocol`。
 4. 该业务包携带 INT 通过实际选择的 s2-s1 链路。
 5. terminal 收到 INT 业务包后补充本端 probe_data，并使用本地 multicast group 101 复制两份。
-6. `egress_rid=0` 的副本剥离 INT，恢复原始 IPv4 字段后交给 h1；`egress_rid=1` 的副本转换为 UDP/50100 INT 报告。
+6. `egress_rid=0` 的副本剥离 INT，恢复原始 IPv4 `protocol`，并用当前 `totalLen - INT长度` 还原 IPv4 长度后交给 h1；`egress_rid=1` 的副本转换为 UDP/50100 INT 报告。
 7. Python 接收端解析 UDP/50100 报告，按连续快照差值计算链路状态。
 
 默认中期验证方向是 h2->h1：s2 作为 INT source，s1 作为 INT terminal，h1 解析报告。
@@ -151,7 +149,7 @@ INT shim 长度为 12 字节，包含：
 |---|---|
 | 时延 | terminal 入端时间减 source 出端时间。 |
 | 抖动 | 相邻两次时延差的绝对值。 |
-| 丢包率 | 根据每路径 INT 序号或包计数差估算。 |
+| 丢包率 | 优先使用源交换机出端口累计包数差与下一跳入端口累计包数差计算，`trace_id` 只用于诊断 INT 采样缺口。 |
 | 相对带宽负载 | 使用累计字节差除以时间差，阶段1作为相对趋势指标。 |
 | 队列深度 | 使用报告中的 `qdepth`。 |
 

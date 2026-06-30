@@ -93,10 +93,12 @@ class TestTimingHighCovert(unittest.TestCase):
         self.assertEqual(packets[0].send_delay_ms, 0.0)
         for pkt in packets:
             self.assertEqual(pkt.strategy_id, 0)
-        delays = [pkt.send_delay_ms for pkt in packets[1:]]
-        self.assertEqual(len(delays), 16)
-        self.assertEqual(delays[:2], [self.strategy._short_gap_ms, self.strategy._long_gap_ms])
-        self.assertEqual(delays[2:4], [self.strategy._long_gap_ms, self.strategy._short_gap_ms])
+        self.assertEqual(len(packets), 11)
+        times = [item["arrival_time_ms"] for item in build_timing_metadata(packets)]
+        score0 = self.strategy._window_score(times[0:4])
+        score1 = self.strategy._window_score(times[1:5])
+        self.assertLess(score0, -self.strategy._decision_threshold_ms)
+        self.assertGreater(score1, self.strategy._decision_threshold_ms)
 
     def test_decode_with_perfect_timing(self):
         data = b"AB"
@@ -117,7 +119,7 @@ class TestTimingHighCovert(unittest.TestCase):
 
         received = []
         metadata = []
-        lost_fragment_id = 6
+        lost_fragment_id = 4
         for pkt, meta in zip(packets, metadata_all):
             if pkt.fragment_id == lost_fragment_id:
                 continue
@@ -128,7 +130,7 @@ class TestTimingHighCovert(unittest.TestCase):
         self.assertIsNotNone(decoded)
         self.assertEqual(len(decoded), len(data))
         self.assertFalse(strategy.last_decode_info["complete"])
-        self.assertIn(2, strategy.last_decode_info["unknown_bits"])
+        self.assertTrue({1, 2, 3, 4}.intersection(strategy.last_decode_info["unknown_bits"]))
 
     def test_metrics_good_path(self):
         good_path = PathState(path_id=0, delay_ms=5, jitter_ms=2, loss_rate=0.001, bw_utilization=0.3)
@@ -153,8 +155,13 @@ class TestTimingHighCapacity(unittest.TestCase):
         packets = self.strategy.encode(data, path_id=0, seq_num=1)
 
         self.assertEqual(packets[0].send_delay_ms, 0.0)
-        delays = [p.send_delay_ms for p in packets[1:4]]
-        self.assertEqual(delays, [25.0, 60.0, 100.0])
+        self.assertEqual(len(packets), 11)
+        times = [item["arrival_time_ms"] for item in build_timing_metadata(packets)]
+        symbols = [
+            self.strategy._classify_score(self.strategy._window_score(times[index : index + 4]))
+            for index in range(4)
+        ]
+        self.assertEqual(symbols, [0b00, 0b01, 0b10, 0b11])
 
     def test_decode_perfect(self):
         data = b"XY"
@@ -175,7 +182,7 @@ class TestTimingHighCapacity(unittest.TestCase):
 
         received = []
         metadata = []
-        lost_fragment_id = 8
+        lost_fragment_id = 4
         for pkt, meta in zip(packets, metadata_all):
             if pkt.fragment_id == lost_fragment_id:
                 continue
@@ -186,9 +193,9 @@ class TestTimingHighCapacity(unittest.TestCase):
         self.assertIsNotNone(decoded)
         self.assertEqual(len(decoded), len(data))
         self.assertFalse(strategy.last_decode_info["complete"])
-        self.assertIn(2, strategy.last_decode_info["unknown_symbols"])
+        self.assertTrue({1, 2, 3, 4}.intersection(strategy.last_decode_info["unknown_symbols"]))
 
-    def test_scheme_b_decodes_when_anchor_is_missing(self):
+    def test_missing_first_packet_marks_local_windows_unknown(self):
         """接收端启动时如果漏掉anchor，首个符号仍可由窗口内部间隔推断。"""
         data = b"\xbd"
         strategy = TimingHighCapacityStrategy(config={"expected_bytes": len(data)})
@@ -204,8 +211,10 @@ class TestTimingHighCapacity(unittest.TestCase):
             metadata.append(meta)
 
         decoded = strategy.decode(received, metadata)
-        self.assertEqual(decoded, data)
-        self.assertTrue(strategy.last_decode_info["complete"])
+        self.assertIsNotNone(decoded)
+        self.assertEqual(len(decoded), len(data))
+        self.assertFalse(strategy.last_decode_info["complete"])
+        self.assertIn(0, strategy.last_decode_info["unknown_symbols"])
 
 
 class TestProtocolHighReliability(unittest.TestCase):

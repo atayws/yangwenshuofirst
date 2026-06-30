@@ -19,11 +19,10 @@
 #define MAX_INT_DATA 4
 
 const bit<16> INT_ETHERTYPE = 0x0812;
-const bit<8>  INT_VERSION = 0x01;
-const bit<8>  INT_HOP_METADATA_LEN = 48;
+const bit<2>  INT_VERSION = 1;
 const bit<8>  INT_IPV4_PROTOCOL = 0xFD;
 const bit<8>  UDP_PROTOCOL = 17;
-const bit<16> INT_SHIM_BYTES = 12;
+const bit<16> INT_SHIM_BYTES = 4;
 const bit<16> INT_PROBE_DATA_BYTES = 48;
 const bit<16> INT_REPORT_UDP_SPORT = 50100;
 const bit<16> INT_REPORT_UDP_DPORT = 50100;
@@ -76,18 +75,13 @@ header udp_t {
 
 /*
  * INT shim 位于 IPv4 头之后、原 TCP/UDP/ICMP 头之前。
- * original_protocol 与 original_total_len 用于终点交换机恢复原业务包。
+ * 该紧凑 shim 只保留恢复协议、跳数和探测序号，固定长度为 4 字节。
  */
 header int_shim_t {
-    bit<8>  ver;
-    bit<2>  rep;
-    bit<6>  reserved;
-    bit<8>  hop_meta_len;
-    bit<8>  hop_count;
-    bit<8>  instruction_bitmap;
+    bit<2>  version;
+    bit<2>  flags;
+    bit<4>  hop_count;
     bit<8>  original_protocol;
-    bit<16> original_total_len;
-    bit<16> domain_id;
     bit<16> trace_id;
 }
 
@@ -209,7 +203,7 @@ parser CovertIntParser(
 
     state parse_probe_data {
         transition select(
-            (meta.probe_data_cnt < hdr.int_shim.hop_count) &&
+            ((bit<4>)meta.probe_data_cnt < hdr.int_shim.hop_count) &&
             (meta.probe_data_cnt < MAX_INT_DATA)) {
             true: parse_probe_data_one;
             false: accept;
@@ -417,7 +411,7 @@ control CovertIntIngress(
 
                 reg_last_time_ingress.write(port_idx, now_ts);
                 meta.probe_data_cnt = meta.probe_data_cnt + 1;
-                hdr.int_shim.hop_count = meta.probe_data_cnt;
+                hdr.int_shim.hop_count = (bit<4>)meta.probe_data_cnt;
                 if (hdr.ipv4.isValid()) {
                     hdr.ipv4.totalLen = hdr.ipv4.totalLen + INT_PROBE_DATA_BYTES;
                 }
@@ -572,15 +566,10 @@ control CovertIntIngress(
                 reg_int_seq_path.write(seq_idx, seq_id);
 
                 hdr.int_shim.setValid();
-                hdr.int_shim.ver = INT_VERSION;
-                hdr.int_shim.rep = 0;
-                hdr.int_shim.reserved = 0;
-                hdr.int_shim.hop_meta_len = INT_HOP_METADATA_LEN;
+                hdr.int_shim.version = INT_VERSION;
+                hdr.int_shim.flags = 0;
                 hdr.int_shim.hop_count = 1;
-                hdr.int_shim.instruction_bitmap = 0xFF;
                 hdr.int_shim.original_protocol = hdr.ipv4.protocol;
-                hdr.int_shim.original_total_len = hdr.ipv4.totalLen;
-                hdr.int_shim.domain_id = 1;
                 hdr.int_shim.trace_id = seq_id;
 
                 hdr.ipv4.protocol = INT_IPV4_PROTOCOL;
@@ -683,9 +672,9 @@ control CovertIntEgress(
 
         if (((meta.int_meta.is_terminal == 1 &&
               std_meta.egress_rid == 1) ||
-             (meta.int_meta.is_terminal == 1 &&
-              std_meta.instance_type == INSTANCE_TYPE_NORMAL &&
-              hdr.int_shim.rep == 3)) &&
+              (meta.int_meta.is_terminal == 1 &&
+               std_meta.instance_type == INSTANCE_TYPE_NORMAL &&
+               hdr.int_shim.flags == 3)) &&
             hdr.int_shim.isValid()) {
             bit<16> report_payload_len = INT_SHIM_BYTES +
                 ((bit<16>)hdr.int_shim.hop_count * INT_PROBE_DATA_BYTES);
@@ -710,10 +699,12 @@ control CovertIntEgress(
         if (meta.int_meta.is_terminal == 1 &&
             std_meta.egress_rid != 1 &&
             hdr.int_shim.isValid() &&
-            hdr.int_shim.rep != 3) {
+            hdr.int_shim.flags != 3) {
             if (hdr.ipv4.isValid()) {
+                bit<16> inline_int_len = INT_SHIM_BYTES +
+                    ((bit<16>)hdr.int_shim.hop_count * INT_PROBE_DATA_BYTES);
                 hdr.ipv4.protocol = hdr.int_shim.original_protocol;
-                hdr.ipv4.totalLen = hdr.int_shim.original_total_len;
+                hdr.ipv4.totalLen = hdr.ipv4.totalLen - inline_int_len;
             }
             hdr.int_shim.setInvalid();
             hdr.probe_data[0].setInvalid();
