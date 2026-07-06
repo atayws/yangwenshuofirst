@@ -54,8 +54,8 @@ sudo bash run.sh
 进入 Mininet CLI 后先检查：
 
 ```bash
-h1 ping -c 5 10.0.1.2
-h2 ping -c 5 10.0.1.1
+h1 ping -c 5 10.0.2.2
+h2 ping -c 5 10.0.1.2
 ```
 
 ## 4. 五窗口用户演示
@@ -216,7 +216,7 @@ h1 python3 experiments/reverse_probe_receiver.py \
   --output experiments/results/manual_int_check.json &
 
 h1 iperf -s -i 5 &
-h2 iperf -c 10.0.1.1 -t 20 -i 5
+h2 iperf -c 10.0.1.2 -t 20 -i 5
 
 h1 cat experiments/results/manual_int_check.json
 ```
@@ -484,3 +484,38 @@ sudo python3 celue4/run_strategy4_matrix.py --timeout 15
 ## 15. 策略5设计补充
 
 策略5用于展示“多路径本身也可以成为隐蔽载体”。它不改端口号，IP-ID 只做自描述，不直接写真实隐蔽比特；真实数据通过三包窗口内的路径排列表示 2 bit。当前已经完成 `celue5/run_strategy5_matrix.py` 离线矩阵验证：顺序和全局乱序均完整恢复，数据区少量缺包只造成局部 unknown，不会让后续码流整体错位。策略5也已经接入 `udp_covert_proxy.py`，通过真实 UDP `iperf` 业务流代理验证；P4 使用 `reg_path_mode=5` 按 IP-ID 中的 path hint 控制逐包路径，代理层用重复挂载提升轻微丢包下的成功率。
+
+## 16. 当前可直接展示的实验材料
+
+答辩 PPT 中建议使用以下材料路径：
+
+| 材料 | 路径 | 用途 |
+|---|---|---|
+| 中期核心讲稿 | `docs/中期审核答辩核心材料.md` | 讲清楚系统原理、六策略、INT 和边界问题 |
+| 实现原理文档 | `docs/implementation_guide.md` | 回答老师追问代码结构和数据流 |
+| 五窗口演示说明 | `experiments/user_demo/操作说明.md` | 现场演示启动顺序 |
+| INT 测试说明 | `int-test/操作文档.md` | 说明 INT 如何测三条链路状态 |
+| 六策略真实业务流验证 | `experiments/results/udp_proxy_real_flow/summary.json` | 证明六策略挂载真实 UDP 业务包 |
+| 动态规则闭环结果 | `experiments/results/dynamic_rule_proxy_closed_loop/summary.json` | 证明链路状态变化后策略/路径会切换 |
+| 丢包-正确率实验图 | `experiments/results/loss_accuracy_figures/` | 论文/PPT 中展示正确率随丢包变化 |
+
+`loss_accuracy_figures` 目录当前只保留 PNG 图片和 JSON 原始数据，不保留 PDF。中文图名包括：
+
+```text
+single_link_loss_accuracy_cn.png
+two_link_loss_accuracy_cn.png
+three_link_loss_accuracy_realistic_final_cn.png
+loss_accuracy_comparison_realistic_final_cn.png
+loss_accuracy_summary_realistic_final.json
+```
+
+### 老师可能追问的两个边界
+
+**1. 如果普通业务包 IP-ID 和策略包 IP-ID 相同怎么办？**
+
+P4 不会因为 IP-ID 相同而丢包；系统通过控制 MTU 和 payload 大小避免 IP 分片，因此不会触发 IPv4 分片重组混淆。接收端也不会只凭 IP-ID 输出隐蔽数据，而是把它作为候选字段，再结合策略号、块号/帧号、符号号、magic、长度、CRC/认证和会话窗口校验。重复的策略包会作为冗余副本去重或投票，普通业务包偶然撞上格式也会因完整校验失败而被过滤。
+
+**2. 当前是不是 PPO 已经完成？**
+
+当前不是 PPO，而是规则选择器。中期阶段的重点是证明链路感知、策略库、路径控制、业务流挂载和接收端重组这条链路已经打通。PPO 后续替换规则选择器即可，输入仍是 INT 链路状态，输出仍是每个 chunk/segment 的策略、路径和冗余参数。
+

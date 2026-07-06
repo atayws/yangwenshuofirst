@@ -24,11 +24,13 @@
 ```text
 h1 -- s1 == path0/path1/path2 == s2 -- h2
 
-h1: 10.0.1.1
-h2: 10.0.1.2
+h1: 10.0.1.2/24, gateway 10.0.1.1
+h2: 10.0.2.2/24, gateway 10.0.2.1
 s1 thrift: 9090
 s2 thrift: 9091
 ```
+
+数据平面采用标准 L3 路由语义。主机侧不再把对端写入静态 ARP，而是通过 P4 交换机应答网关 ARP；`ipv4_lpm` 表项同时给出下一跳目的 MAC、本机出接口源 MAC 和出端口，P4 action 会重写二层头并递减 TTL。对于轮询、加权轮询等多路径模式，egress 阶段会按实际 s1-s2 链路端口重写链路两端 MAC，保证路径切换后仍符合三层转发语义。
 
 三条链路默认配置：
 
@@ -358,7 +360,7 @@ sudo python3 experiments/run_interactive_closed_loop.py \
 
 为了提高长输入正确率和发送速度，五窗口默认路径做了专门优化：
 
-1. 默认 `chunk-size` 从早期 6 字节提高到 64 字节，减少 segment 数和控制面路径切换次数；1024 字节输入由 171 个 segment 降到 16 个 segment。
+1. 默认 `chunk-size` 从早期 6 字节提高到 16 字节，在减少 segment 数和保留多路径/策略切换粒度之间折中；1024 字节输入约切成 64 个 segment。
 2. 发送端代理使用持久 Scapy L2 socket，并把默认 L2 发包间隔控制在 1ms 左右，避免每包重新建发送路径。
 3. 策略3在普通模式下仍保持 `repeat_count=2`，保证 BMv2/抓包轻微丢包时可以投票恢复。
 4. 策略选择同时使用 INT 测量值和 `link_config_tool.py` 设置的 netem 参数；手动设置丢包后，后续 segment 会立即避开该链路。只有没有健康链路时，才使用策略2并提高重复强度。
@@ -629,3 +631,44 @@ sudo python3 celue4/run_strategy4_matrix.py --timeout 15
 ```
 
 接收端根据 `fragment_id` 或接收窗口重组出三包窗口，再由路径元数据或路径特征恢复排列。它的优势是 IP-ID 只做轻量自描述，真实隐蔽比特仍藏在路径排列中；限制是需要发送端/控制面能够按窗口控制实际路径。当前 `celue5/run_strategy5_matrix.py` 已完成 100 bit 离线矩阵验证：顺序和乱序完整恢复，数据区少量缺包只造成局部 unknown，帧头区缺包会触发 magic 校验失败。
+
+## 12. 当前实现口径补充
+
+### 12.1 4 字节 INT shim
+
+当前版本采用轻量化 4 字节 INT shim，避免早期 shim 字段过多导致 MTU 压力。shim 位布局如下：
+
+```text
+byte0:
+  version      2 bit
+  flags        2 bit
+  hop_count    4 bit
+
+byte1:
+  original_protocol 8 bit
+
+byte2-3:
+  trace_id     16 bit
+```
+
+其中 `original_protocol` 用于终点交换机恢复原始 IPv4 上层协议，保证 INT 头只在 s1/s2 之间存在；`trace_id` 用于关联采样和诊断 INT 样本缺口，但业务链路丢包率优先由端口累计计数差计算。当前链路状态窗口默认读取最新解析结果，约 1 s 刷新；丢包率使用最近约 5 s 滑动窗口，避免单个采样点造成策略频繁抖动。
+
+### 12.2 六策略真实业务流挂载状态
+
+六个策略的共同原则是：业务 payload 最终必须恢复给接收端应用，隐蔽解码失败不能影响业务转发。
+
+| 策略 | 隐蔽载体 | 是否修改业务 payload | 接收端业务恢复方式 | 适用链路 |
+|---:|---|---|---|---|
+| 0 | 四包滑动窗口的二阶时延差 | 临时增加 2 字节 timing tag | 剥离 timing tag 后转发原 payload | 低丢包、低抖动 |
+| 1 | 四档二阶时延差，每窗口 2 bit | 临时增加 2 字节 timing tag | 剥离 timing tag 后转发原 payload | 低丢包、低抖动、容量略高 |
+| 2 | IPv4 ID 可靠块编码 | 不修改 payload | payload 原样转发 | 中高丢包或高抖动 |
+| 3 | IP 包长统计区间 | 增加同步小头、原长度字段和 padding | 按原长度字段截回原 payload | 低丢包、希望较高速率 |
+| 4 | IPv4 ID 喷泉码符号，多路径协同 | 不修改 payload | payload 原样转发 | 多链路同时丢包或需要协同 |
+| 5 | 三包路径排列序列 | 不修改 payload | payload 原样转发 | 路径可控、低到中等丢包 |
+
+当前策略切换粒度是 chunk/segment，而不是包级任意切换。原因是策略0/1需要完整时序窗口，策略4需要完整喷泉码 frame，策略5需要完整路径序列窗口；在这些结构中途切换会破坏解码边界。
+
+### 12.3 IP-ID 相同或误撞处理
+
+P4 数据面不会因为两个包的 IPv4 ID 相同而丢弃。IP-ID 相同的主要风险是 IPv4 分片重组和接收端隐蔽候选误识别，因此系统通过控制业务 payload/MTU 避免分片，并在接收端使用 `strategy_id`、序号、magic、CRC/认证和会话窗口进行多级校验。重复策略包会作为冗余副本去重或投票；普通业务包偶然撞上格式也会因完整校验失败被过滤，不影响原始业务 payload 转发。
+

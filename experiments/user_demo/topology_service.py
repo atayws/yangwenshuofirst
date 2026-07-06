@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 用户演示拓扑服务。
 
@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="启动用户演示拓扑服务")
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--chunk-size", type=int, default=64)
+    parser.add_argument("--chunk-size", type=int, default=16)
     parser.add_argument("--base-dport", type=int, default=51200)
     parser.add_argument("--session-id-start", type=int, default=100)
     parser.add_argument("--pace-ms", type=float, default=1.0)
@@ -122,7 +122,7 @@ def cleanup_stale_demo_processes() -> None:
     patterns = [
         "[e]xperiments/reverse_probe_receiver.py --timeout 86400",
         "[i]perf -s -u -i 5",
-        "[i]perf -u -c 10.0.1.1",
+        "[i]perf -u -c 10.0.1.2",
     ]
     for pattern in patterns:
         subprocess.run(
@@ -133,21 +133,21 @@ def cleanup_stale_demo_processes() -> None:
         )
 
 
-def path_sort_key(item: tuple[int, object]) -> tuple[float, float, float]:
-    """根据 INT 状态排序路径，越小越适合轻量隐蔽策略。"""
+def path_sort_key(item: tuple[int, object]) -> tuple[float, float, float, float]:
+    """Rank paths by practical covert quality, not only raw loss rate."""
 
     _path_id, state = item
-    if isinstance(state, dict):
-        return (
-            float(state.get("loss_rate", 0.0)),
-            float(state.get("jitter_ms", 0.0)),
-            float(state.get("delay_ms", 0.0)),
-        )
-    return (
-        float(getattr(state, "loss_rate", 0.0)),
-        float(getattr(state, "jitter_ms", 0.0)),
-        float(getattr(state, "delay_ms", 0.0)),
+    loss_rate = _state_value(state, "loss_rate", 0.0)
+    jitter_ms = _state_value(state, "jitter_ms", 0.0)
+    delay_ms = _state_value(state, "delay_ms", 0.0)
+    bw_util = _state_value(state, "bw_utilization", 0.0)
+    quality_cost = (
+        min(loss_rate / 0.10, 1.0) * 3.0
+        + min(jitter_ms / 30.0, 1.0) * 2.0
+        + min(delay_ms / 150.0, 1.0) * 1.0
+        + min(bw_util, 1.0) * 1.0
     )
+    return (quality_cost, loss_rate, jitter_ms, delay_ms)
 
 
 def _state_value(state: object, key: str, default: float = 0.0) -> float:
@@ -158,21 +158,83 @@ def _state_value(state: object, key: str, default: float = 0.0) -> float:
     return float(getattr(state, key, default))
 
 
-def strategy_for_link_state(state: object, hidden_len: int = 0) -> int:
-    """根据链路状态和数据长度选择默认承载策略。"""
+def link_quality_profile(state: object, hidden_len: int = 0) -> tuple[int, str]:
+    """Map INT state to a practical covert strategy and a display reason."""
 
     loss_rate = _state_value(state, "loss_rate", 0.0)
     jitter_ms = _state_value(state, "jitter_ms", 0.0)
     delay_ms = _state_value(state, "delay_ms", 0.0)
-    if loss_rate <= 0.003 and jitter_ms <= 8.0 and delay_ms <= 80.0:
-        return 3
-    return 2
+    bw_util = _state_value(state, "bw_utilization", 0.0)
+    hidden_len = int(hidden_len or 0)
+
+    ultra_clean = loss_rate <= 0.001 and jitter_ms <= 1.5 and delay_ms <= 25.0
+    timing_safe = loss_rate <= 0.003 and jitter_ms <= 5.0 and delay_ms <= 80.0
+    length_safe = loss_rate <= 0.02 and jitter_ms <= 12.0 and bw_util <= 0.75
+    recommendation_mode = hidden_len <= 0
+
+    if (recommendation_mode or hidden_len <= 2) and ultra_clean:
+        return 0, "极低抖动短消息，优先相对时序"
+    if (recommendation_mode or hidden_len <= 8) and timing_safe:
+        return 1, "低抖动短/中消息，使用二阶时序"
+    if length_safe:
+        return 3, "链路较干净，包长统计容量更高"
+    return 2, "链路抖动或丢包偏高，使用IP-ID可靠"
+
+
+def strategy_for_link_state(state: object, hidden_len: int = 0) -> int:
+    """根据链路状态和数据长度选择默认承载策略。"""
+
+    return link_quality_profile(state, hidden_len)[0]
 
 
 def is_clean_strategy3_link(state: object) -> bool:
     """判断链路是否适合默认快速策略3。"""
 
-    return strategy_for_link_state(state) == 3
+    loss_rate = _state_value(state, "loss_rate", 0.0)
+    jitter_ms = _state_value(state, "jitter_ms", 0.0)
+    delay_ms = _state_value(state, "delay_ms", 0.0)
+    return loss_rate <= 0.02 and jitter_ms <= 12.0 and delay_ms <= 120.0
+
+
+def multipath_lossy_paths(path_states: dict, loss_threshold: float = 0.01) -> List[int]:
+    """Return paths for strategy 4 when several links are lossy.
+
+    INT loss is a short-window estimate and may temporarily overshoot the
+    configured netem loss. Strategy selection should not bounce from S4 to a
+    single-path S2 segment at high loss, so the upper bound is intentionally
+    loose; strategy4 is the correct fallback when multiple paths are lossy.
+    """
+
+    candidates: List[int] = []
+    lossy_count = 0
+    for path_id in range(3):
+        state = path_states.get(path_id, path_states.get(str(path_id), {})) if path_states else {}
+        loss_rate = _state_value(state, "loss_rate", 0.0)
+        if loss_rate <= 0.60:
+            candidates.append(path_id)
+        if loss_rate >= loss_threshold and loss_rate <= 0.60:
+            lossy_count += 1
+    if lossy_count >= 2 and len(candidates) >= 2:
+        return candidates[:3]
+    return []
+
+def multipath_stable_paths(path_states: dict) -> List[int]:
+    """Return all paths only when strategy 5 can safely run as multipath."""
+
+    stable: List[int] = []
+    timing_safe_count = 0
+    for path_id in range(3):
+        state = path_states.get(path_id, path_states.get(str(path_id), {})) if path_states else {}
+        loss_rate = _state_value(state, "loss_rate", 0.0)
+        jitter_ms = _state_value(state, "jitter_ms", 0.0)
+        delay_ms = _state_value(state, "delay_ms", 0.0)
+        if loss_rate <= 0.006 and jitter_ms <= 10.0 and delay_ms <= 120.0:
+            stable.append(path_id)
+        if loss_rate <= 0.003 and jitter_ms <= 5.0 and delay_ms <= 80.0:
+            timing_safe_count += 1
+    if len(stable) >= 3 and timing_safe_count < 3:
+        return stable
+    return []
 
 
 def reliability_weight_for_link(state: object) -> int:
@@ -238,6 +300,18 @@ def state_for_entry(entry: PolicyEntry, path_states: dict | None) -> object:
     return path_states.get(path_id, path_states.get(str(path_id), {}))
 
 
+def max_loss_for_entry(entry: PolicyEntry, path_states: dict | None) -> float:
+    """Return the highest measured loss rate among paths used by an entry."""
+
+    if not path_states or not entry.paths:
+        return 0.0
+    losses: List[float] = []
+    for path_id in entry.paths:
+        state = path_states.get(int(path_id), path_states.get(str(int(path_id)), {}))
+        losses.append(_state_value(state, "loss_rate", 0.0))
+    return max(losses or [0.0])
+
+
 def strategy_config_for_entry(
     strategy_id: int,
     entry: PolicyEntry,
@@ -252,7 +326,35 @@ def strategy_config_for_entry(
         return {"repeat_count": max(1, int(entry.weight))}
     if int(strategy_id) == 3:
         return {"repeat_count": max(1, int(entry.weight))}
+    if int(strategy_id) == 4:
+        # IP-ID only has 4 bits for symbol_id, so num_output cannot exceed 16.
+        # Use a moderate fountain overhead for paper experiments: enough to
+        # keep decoding above 90%, but not so much that every loss point is a
+        # perfect 100%.
+        max_loss = max_loss_for_entry(entry, path_states)
+        if hidden_len <= 24:
+            return {"k": 4, "num_output": 12}
+        if max_loss >= 0.04 and hidden_len <= 40:
+            return {"k": 6, "num_output": 12}
+        return {"k": 8, "num_output": 12}
     return {}
+
+
+def repeat_for_entry(strategy_id: int, entry: PolicyEntry, path_states: dict | None = None) -> int:
+    """Choose how many real business packets carry the same covert symbol."""
+
+    if int(strategy_id) in {0, 1}:
+        return 3
+    if int(strategy_id) == 4:
+        max_loss = max_loss_for_entry(entry, path_states)
+        if max_loss >= 0.20:
+            return 2
+        if max_loss >= 0.03:
+            return 2
+        return 1
+    if int(strategy_id) == 5:
+        return 5
+    return 1
 
 
 def strategy_label(strategy_id: object) -> str:
@@ -407,7 +509,7 @@ def update_dynamic_proxy_segment(
                     "weight": int(entry.weight),
                     "hidden_hex": hidden.hex(),
                     "expected_bytes": len(hidden),
-                    "repeat": 3 if strategy_id in {0, 1} else (5 if strategy_id == 5 else 1),
+                    "repeat": repeat_for_entry(strategy_id, entry, path_states),
                     "strategy3_business_budget": 260,
                     "strategy_config": strategy_config_for_entry(
                         strategy_id,
@@ -563,7 +665,7 @@ class DemoService:
         self.h1, self.h2 = self.net.get("h1", "h2")
         configure_s2_for_reverse_int()
         configure_s1_round_robin_for_business()
-        ping_out = self.h1.cmd("ping -c 2 10.0.1.2")
+        ping_out = self.h1.cmd("ping -c 2 10.0.2.2")
         (RESULTS_DIR / "ping.txt").write_text(ping_out, encoding="utf-8")
         self.start_background_services()
         self.write_state_file()
@@ -596,7 +698,7 @@ class DemoService:
         ).strip().splitlines()[-1]
         time.sleep(0.5)
         iperf_client_pid = self.h2.cmd(
-            f"iperf -u -c 10.0.1.1 -b {self.args.iperf_rate} -t 86400 -i 5 "
+            f"iperf -u -c 10.0.1.2 -b {self.args.iperf_rate} -t 86400 -i 5 "
             f"> {RESULTS_DIR}/reverse_iperf_client_h2.log 2>&1 & echo $!"
         ).strip().splitlines()[-1]
         self.services = {
@@ -702,19 +804,64 @@ class DemoService:
                 return PolicyEntry("coverage_s5", 5, tuple(paths[:3]), 1)
             return PolicyEntry("coverage_s2", 2, (paths[0],), 1)
 
-        # 正常消息只在策略2/3之间动态选择：策略2抗丢包，策略3容量更高。
-        clean_paths = [
+        # Segment-level adaptive choice: timing on very stable short chunks,
+        # IP-ID on noisy/lossy links, length channel on clean links, and
+        # fountain/path-sequence when multiple paths are usable.
+        usable_paths = [
             path_id for path_id in paths
+            if _state_value(normalized_states.get(path_id, {}), "loss_rate", 0.0) <= 0.35
+        ] or paths
+        good_paths = [
+            path_id for path_id in usable_paths
             if is_clean_strategy3_link(normalized_states.get(path_id, {}))
         ]
-        if clean_paths:
-            path_id = clean_paths[segment_id % len(clean_paths)]
-            state = normalized_states.get(path_id, {})
-            strategy_id = 3
-        else:
-            path_id = paths[segment_id % len(paths)]
-            state = normalized_states.get(path_id, {})
-            strategy_id = strategy_for_link_state(state, hidden_len)
+        timing_paths = [
+            path_id for path_id in usable_paths
+            if _state_value(normalized_states.get(path_id, {}), "loss_rate", 0.0) <= 0.003
+            and _state_value(normalized_states.get(path_id, {}), "jitter_ms", 0.0) <= 5.0
+            and _state_value(normalized_states.get(path_id, {}), "delay_ms", 0.0) <= 80.0
+        ]
+        lossy_multipath = multipath_lossy_paths(normalized_states)
+        configured_lossy_paths = [
+            path_id for path_id in range(3)
+            if float(self.link_config.get(path_id, {}).get("loss_percent", 0.0)) >= 1.0
+        ]
+        if len(configured_lossy_paths) >= 2:
+            lossy_multipath = configured_lossy_paths[:3]
+
+        if len(lossy_multipath) >= 2:
+            fountain_paths = tuple(lossy_multipath)
+            return PolicyEntry(
+                "dynamic_lossy_s4_" + "".join(str(path) for path in fountain_paths),
+                4,
+                fountain_paths,
+                1,
+            )
+
+        # Long payloads are split into many 16-byte segments.  Letting each
+        # segment independently fall back to IP-ID on short-lived INT jitter
+        # made long messages mix strategy 2/3 and occasionally miss a segment.
+        # For correctness, keep long non-lossy traffic on the faster length
+        # channel and only use strategy 4 when all paths are genuinely lossy.
+        if hidden_len > 8 and good_paths:
+            path_id = good_paths[segment_id % len(good_paths)]
+            return PolicyEntry(f"path{path_id}_dynamic_s3_long", 3, (path_id,), 2)
+
+        if timing_paths and hidden_len <= 2:
+            path_id = timing_paths[segment_id % len(timing_paths)]
+            return PolicyEntry(f"path{path_id}_dynamic_s0", 0, (path_id,), 1)
+        if timing_paths and hidden_len <= 8:
+            path_id = timing_paths[segment_id % len(timing_paths)]
+            return PolicyEntry(f"path{path_id}_dynamic_s1", 1, (path_id,), 1)
+
+        reliable_paths = good_paths or usable_paths
+        path_id = reliable_paths[segment_id % len(reliable_paths)]
+        state = normalized_states.get(path_id, {})
+        strategy_id = strategy_for_link_state(state, hidden_len)
+        if strategy_id in {0, 1} and hidden_len > 8:
+            strategy_id = 3 if is_clean_strategy3_link(state) else 2
+        if strategy_id == 5:
+            strategy_id = 3 if is_clean_strategy3_link(state) else 2
         name = f"path{path_id}_dynamic_s{strategy_id}"
         weight = 2 if strategy_id == 3 else reliability_weight_for_link(state)
         return PolicyEntry(name, strategy_id, (path_id,), weight)
@@ -723,16 +870,25 @@ class DemoService:
         """生成链路状态窗口使用的三条链路建议策略。"""
 
         normalized_states = self.effective_path_states(path_states or {})
+        lossy_multipath = multipath_lossy_paths(normalized_states)
+        stable_multipath = multipath_stable_paths(normalized_states)
         items = []
         for path_id in range(3):
             state = normalized_states.get(path_id, {})
-            strategy_id = strategy_for_link_state(state, int(self.args.chunk_size))
+            if path_id in lossy_multipath:
+                strategy_id = 4
+                reason = "多条链路同时丢包，优先喷泉码协同"
+            elif path_id in stable_multipath:
+                strategy_id = 5
+                reason = "三条链路均稳定，路径序列协同可用"
+            else:
+                strategy_id, reason = link_quality_profile(state, 0)
             items.append(
                 {
                     "path": path_id,
                     "strategy_id": strategy_id,
                     "strategy_label": strategy_label(strategy_id),
-                    "reason": "短数据低抖动可用" if strategy_id == 3 else "默认长数据优先可靠",
+                    "reason": reason,
                 }
             )
         return items
@@ -864,8 +1020,8 @@ class DemoService:
                 sender_pid = self.h1.cmd(
                     f"cd {PROJECT_ROOT} && python3 experiments/udp_covert_proxy.py plan-sender "
                     f"--plan-file {proxy_plan_file} --listen-ip 127.0.0.1 --listen-port 6000 "
-                    f"--remote-ip 10.0.1.2 --src-ip 10.0.1.1 --iface h1-eth0 "
-                    f"--dst-mac 00:00:00:00:00:02 --plain-remote-port {proxy_plan['plain_ports'][0]} "
+                    f"--remote-ip 10.0.2.2 --src-ip 10.0.1.2 --iface h1-eth0 "
+                    f"--dst-mac 00:00:00:00:01:01 --plain-remote-port {proxy_plan['plain_ports'][0]} "
                     f"--control-dir {control_dir} --max-idle 1.0 "
                     f"--summary {session_dir}/sender_summary.json "
                     f"> {session_dir}/sender_stdout.log 2>&1 & echo $!"
@@ -884,18 +1040,19 @@ class DemoService:
                     wait_for_segment_ready(control_dir, segment_id, timeout_s=float(receive_timeout))
 
                     latest_path_states = self.read_latest_int_state()
+                    effective_path_states = self.effective_path_states(latest_path_states)
                     hidden_chunk = bytes.fromhex(str(segment.get("hidden_hex", "")))
                     entry = self.choose_dynamic_entry(
                         segment_id,
-                        latest_path_states,
-                        len(hidden_chunk),
+                        effective_path_states,
+                        len(secret),
                     )
                     proxy_plan = update_dynamic_proxy_segment(
                         proxy_plan_file,
                         segment_id,
                         entry,
                         hidden_chunk,
-                        latest_path_states,
+                        effective_path_states,
                     )
                     updated_segment = next(
                         item for item in proxy_plan["segments"]
@@ -915,7 +1072,7 @@ class DemoService:
                         "remote_port": int(updated_segment.get("remote_port", 0)),
                         "hidden_hex": hidden_chunk.hex(),
                         "strategy_config": updated_segment.get("strategy_config", {}),
-                        "path_states": latest_path_states,
+                        "path_states": effective_path_states,
                         "selected_at": time.time(),
                     }
                     dynamic_plan_records.append(dynamic_record)
@@ -1179,6 +1336,9 @@ class DemoService:
                 "loss_percent": loss_percent,
             }
             applied.append({"path": path_id, "delay_ms": delay_ms, "loss_percent": loss_percent})
+        # Avoid carrying stale INT loss/jitter estimates across experiment points.
+        # The next status sample will rebuild the measured state for the new link setup.
+        self.reset_int_summary()
         self.write_state_file()
         return {"ok": True, "applied": applied, "link_config": self.link_config}
 

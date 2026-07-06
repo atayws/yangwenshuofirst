@@ -263,7 +263,7 @@ def analyze_pcap(strategy_id: int, pcap_path: Optional[Path], case_dir: Path, re
     for pkt in rdpcap(str(pcap_path)):
         if IP not in pkt or UDP not in pkt:
             continue
-        if pkt[IP].src != "10.0.1.1" or pkt[IP].dst != "10.0.1.2":
+        if pkt[IP].src != "10.0.1.2" or pkt[IP].dst != "10.0.2.2":
             continue
         if int(pkt[UDP].dport) != 6100:
             continue
@@ -477,8 +477,8 @@ def run_case(h1, h2, args: argparse.Namespace, strategy_id: int) -> dict:
         f"cd {ROOT} && python3 experiments/udp_covert_proxy.py sender "
         f"--strategy {strategy_id} --hidden-input {input_file} "
         f"--listen-ip 127.0.0.1 --listen-port 6000 "
-        f"--remote-ip 10.0.1.2 --remote-port 6100 "
-        f"--src-ip 10.0.1.1 --iface h1-eth0 --dst-mac 00:00:00:00:00:02 "
+        f"--remote-ip 10.0.2.2 --remote-port 6100 "
+        f"--src-ip 10.0.1.2 --iface h1-eth0 --dst-mac 00:00:00:00:01:01 "
         f"--send-mode auto --path-id 0 --path-weights 1,1,1 --seq-num 1 "
         f"--business-payload-len 32 --strategy3-business-budget {args.iperf_len + 32} "
         f"--timing-repeat {max(1, int(args.timing_repeat))} "
@@ -565,15 +565,14 @@ def run_live(args: argparse.Namespace) -> dict:
         runtime.configure_mtu(net, runtime_args.host_mtu, runtime_args.trunk_mtu)
         runtime.disable_offload(net)
         h1, h2 = net.get("h1", "h2")
-        h1.setARP("10.0.1.2", "00:00:00:00:00:02")
-        h2.setARP("10.0.1.1", "00:00:00:00:00:01")
+        runtime.configure_host_routing(h1, h2)
         runtime.wait_for_thrift(9090)
         runtime.wait_for_thrift(9091)
         runtime.run_cli_file(9090, "s1", str(S1_CLI), str(LOG_DIR))
         runtime.run_cli_file(9091, "s2", str(S2_CLI), str(LOG_DIR))
         configure_s2_reverse_int()
 
-        ping_out = h1.cmd("ping -c 2 10.0.1.2")
+        ping_out = h1.cmd("ping -c 2 10.0.2.2")
         (RESULTS_DIR / "ping.txt").write_text(ping_out, encoding="utf-8")
 
         results = []

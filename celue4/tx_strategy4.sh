@@ -14,10 +14,10 @@ mkdir -p "${OUT_DIR}"
 exec python3 experiments/live_send_strategy.py \
   --strategy 4 \
   --input "${INPUT_FILE}" \
-  --dst-ip 10.0.1.2 \
-  --src-ip 10.0.1.1 \
+  --dst-ip 10.0.2.2 \
+  --src-ip 10.0.1.2 \
   --iface h1-eth0 \
-  --dst-mac 00:00:00:00:00:02 \
+  --dst-mac 00:00:00:00:01:01 \
   --send-mode scapy-l2 \
   --dport "${DPORT}" \
   --pace-ms "${PACE_MS}" \

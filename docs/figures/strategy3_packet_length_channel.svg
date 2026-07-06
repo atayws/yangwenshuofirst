@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="820" viewBox="0 0 1500 820">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#30343b"/>
+    </marker>
+    <style>
+      .title { font: 700 34px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #1f2933; }
+      .subtitle { font: 400 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .label { font: 600 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #111827; }
+      .small { font: 400 17px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #374151; }
+      .tiny { font: 400 14px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .mono { font: 600 17px "Consolas", "Courier New", monospace; fill: #111827; }
+      .line { stroke: #30343b; stroke-width: 2.5; fill: none; }
+      .dash { stroke: #6b7280; stroke-width: 2; stroke-dasharray: 7 6; fill: none; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 10; }
+      .tag { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; rx: 8; }
+      .payload { fill: #f8fafc; stroke: #94a3b8; stroke-width: 2; rx: 8; }
+      .pad { fill: #fef3c7; stroke: #d97706; stroke-width: 2; rx: 8; }
+      .band0 { fill: #e0f2fe; stroke: #0284c7; stroke-width: 2; }
+      .band1 { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; }
+      .band2 { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .band3 { fill: #fee2e2; stroke: #dc2626; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="820" fill="#ffffff"/>
+  <text x="70" y="62" class="title">策略3：基于业务包长度区间的统计型隐蔽信道</text>
+  <text x="70" y="99" class="subtitle">发送端将白化后的隐蔽比特映射到不同包长区间，接收端根据包长落点与同步小头恢复符号。</text>
+
+  <rect x="80" y="150" width="380" height="170" class="box"/>
+  <text x="110" y="190" class="label">编码流程</text>
+  <text x="110" y="228" class="small">隐蔽数据 → 白化 → 2 bit 符号</text>
+  <text x="110" y="260" class="small">伪随机映射到长度区间</text>
+  <text x="110" y="292" class="small">填充 payload，使包长落入目标区间</text>
+
+  <line x1="480" y1="235" x2="585" y2="235" class="line" marker-end="url(#arrow)"/>
+
+  <text x="610" y="155" class="label">单个承载业务包</text>
+  <g transform="translate(610,185)">
+    <rect x="0" y="0" width="220" height="88" class="tag"/>
+    <text x="44" y="36" class="mono">S3 Tag</text>
+    <text x="35" y="64" class="tiny">12B，同步/序号/认证</text>
+
+    <rect x="220" y="0" width="270" height="88" class="payload"/>
+    <text x="285" y="36" class="mono">业务载荷</text>
+    <text x="278" y="64" class="tiny">原始 UDP payload</text>
+
+    <rect x="490" y="0" width="220" height="88" class="pad"/>
+    <text x="548" y="36" class="mono">Padding</text>
+    <text x="535" y="64" class="tiny">调节总包长</text>
+  </g>
+
+  <line x1="1320" y1="235" x2="1400" y2="235" class="line" marker-end="url(#arrow)"/>
+  <text x="1290" y="286" class="small">形成目标包长</text>
+
+  <text x="80" y="392" class="label">长度区间示例</text>
+  <text x="80" y="424" class="small">每个区间对应一个 2 bit 符号；实际区间会根据配置和业务负载预算调整。</text>
+
+  <g transform="translate(95,470)">
+    <line x1="0" y1="135" x2="1280" y2="135" class="line" marker-end="url(#arrow)"/>
+    <text x="1210" y="164" class="small">packet length</text>
+
+    <rect x="20" y="58" width="220" height="76" class="band0"/>
+    <text x="83" y="92" class="mono">Band 0</text>
+    <text x="84" y="118" class="small">00</text>
+
+    <rect x="340" y="38" width="240" height="96" class="band1"/>
+    <text x="413" y="79" class="mono">Band 1</text>
+    <text x="414" y="108" class="small">01</text>
+
+    <rect x="705" y="20" width="235" height="114" class="band2"/>
+    <text x="775" y="69" class="mono">Band 2</text>
+    <text x="776" y="101" class="small">10</text>
+
+    <rect x="1040" y="0" width="220" height="134" class="band3"/>
+    <text x="1103" y="58" class="mono">Band 3</text>
+    <text x="1104" y="94" class="small">11</text>
+  </g>
+
+  <rect x="80" y="690" width="410" height="82" class="box"/>
+  <text x="110" y="724" class="small">重复发送：每个符号默认重复 3 次</text>
+  <text x="110" y="752" class="tiny">接收端按 symbol_index 聚合，对长度区间投票。</text>
+
+  <rect x="545" y="690" width="410" height="82" class="box"/>
+  <text x="575" y="724" class="small">同步小头：S3 + seq + index + auth</text>
+  <text x="575" y="752" class="tiny">用于避免丢包或乱序导致整体失步。</text>
+
+  <rect x="1010" y="690" width="410" height="82" class="box"/>
+  <text x="1040" y="724" class="small">隐蔽性：利用统计包长分布承载信息</text>
+  <text x="1040" y="752" class="tiny">不依赖 IP-ID，但会改变包长分布。</text>
+</svg>

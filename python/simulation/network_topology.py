@@ -46,8 +46,8 @@ class TopologyConfig:
     name: str = "covert_2switch_3link"
 
     # 中文注释。
-    sender: Host = field(default_factory=lambda: Host("h1", "10.0.1.1"))
-    receiver: Host = field(default_factory=lambda: Host("h2", "10.0.1.2"))
+    sender: Host = field(default_factory=lambda: Host("h1", "10.0.1.2"))
+    receiver: Host = field(default_factory=lambda: Host("h2", "10.0.2.2"))
 
     # 中文注释。
     s1: Switch = field(default_factory=lambda: Switch("s1", 1, "source"))

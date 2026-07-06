@@ -39,6 +39,15 @@ const bit<3> PATH_MODE_IPID_HINT = 5;
 const bit<16> DEFAULT_REDUNDANCY_MCAST_GRP = 100;
 const bit<9> HOST_PORT = 1;
 
+const bit<48> S1_HOST_MAC  = 48w0x000000000101;
+const bit<48> S1_PATH0_MAC = 48w0x000000000102;
+const bit<48> S1_PATH1_MAC = 48w0x000000000103;
+const bit<48> S1_PATH2_MAC = 48w0x000000000104;
+const bit<48> S2_HOST_MAC  = 48w0x000000000201;
+const bit<48> S2_PATH0_MAC = 48w0x000000000202;
+const bit<48> S2_PATH1_MAC = 48w0x000000000203;
+const bit<48> S2_PATH2_MAC = 48w0x000000000204;
+
 /*
  * 部分旧版 v1model.p4 不暴露 PKT_INSTANCE_TYPE_NORMAL 名称。
  * BMv2 中普通原始包的 instance_type 为 0，克隆/组播副本通常不是 0。
@@ -64,6 +73,18 @@ header ipv4_t {
     bit<16> hdrChecksum;
     bit<32> srcAddr;
     bit<32> dstAddr;
+}
+
+header arp_t {
+    bit<16> htype;
+    bit<16> ptype;
+    bit<8>  hlen;
+    bit<8>  plen;
+    bit<16> oper;
+    bit<48> sha;
+    bit<32> spa;
+    bit<48> tha;
+    bit<32> tpa;
 }
 
 header udp_t {
@@ -114,6 +135,7 @@ struct int_metadata_t {
 
 struct headers {
     ethernet_t ethernet;
+    arp_t arp;
     ipv4_t ipv4;
     udp_t udp;
     int_shim_t int_shim;
@@ -181,10 +203,16 @@ parser CovertIntParser(
         meta.probe_data_cnt = 0;
         packet.extract(hdr.ethernet);
         transition select(hdr.ethernet.etherType) {
+            0x0806: parse_arp;
             0x0800: parse_ipv4;
             INT_ETHERTYPE: parse_int_shim;
             default: accept;
         }
+    }
+
+    state parse_arp {
+        packet.extract(hdr.arp);
+        transition accept;
     }
 
     state parse_ipv4 {
@@ -274,12 +302,34 @@ control CovertIntIngress(
     inout metadata meta,
     inout standard_metadata_t std_meta)
 {
-    action set_egress(bit<9> port) {
+    action ipv4_forward(bit<48> dst_mac, bit<48> src_mac, bit<9> port) {
+        hdr.ethernet.dstAddr = dst_mac;
+        hdr.ethernet.srcAddr = src_mac;
         std_meta.egress_spec = port;
+        if (hdr.ipv4.ttl > 0) {
+            hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+        } else {
+            mark_to_drop(std_meta);
+        }
     }
 
     action drop() {
         mark_to_drop(std_meta);
+    }
+
+    action arp_reply(bit<48> my_mac) {
+        bit<48> requester_mac = hdr.arp.sha;
+        bit<32> requester_ip = hdr.arp.spa;
+        bit<32> target_ip = hdr.arp.tpa;
+
+        hdr.ethernet.dstAddr = requester_mac;
+        hdr.ethernet.srcAddr = my_mac;
+        hdr.arp.oper = 2;
+        hdr.arp.tha = requester_mac;
+        hdr.arp.tpa = requester_ip;
+        hdr.arp.sha = my_mac;
+        hdr.arp.spa = target_ip;
+        std_meta.egress_spec = std_meta.ingress_port;
     }
 
     action route_by_path(bit<8> path_id, bit<9> port_0, bit<9> port_1, bit<9> port_2) {
@@ -295,8 +345,18 @@ control CovertIntIngress(
 
     table ipv4_lpm {
         key = { hdr.ipv4.dstAddr: lpm; }
-        actions = { set_egress; drop; NoAction; }
+        actions = { ipv4_forward; drop; NoAction; }
         size = 64;
+        default_action = drop();
+    }
+
+    table arp_request_table {
+        key = {
+            hdr.arp.oper: exact;
+            hdr.arp.tpa: exact;
+        }
+        actions = { arp_reply; drop; NoAction; }
+        size = 8;
         default_action = drop();
     }
 
@@ -428,6 +488,10 @@ control CovertIntIngress(
             swid == terminal_swid) {
             meta.int_meta.is_terminal = 1;
             std_meta.mcast_grp = INT_REPORT_MCAST_GRP;
+        }
+
+        if (hdr.arp.isValid()) {
+            arp_request_table.apply();
         }
 
         if (hdr.ipv4.isValid()) {
@@ -670,6 +734,37 @@ control CovertIntEgress(
             reg_last_time_egress.write(port_idx, now_egress);
         }
 
+        /*
+         * 标准三层转发语义：多路径模式可能在 ingress 中覆盖出端口，
+         * 因此在 egress 按实际出端口重写交换机间链路的二层 MAC。
+         * 主机端口的 MAC 由 ipv4_lpm 的 ipv4_forward action 写入。
+         */
+        if (hdr.ipv4.isValid() && std_meta.egress_port != HOST_PORT) {
+            if (meta.int_meta.swid == 1) {
+                if (std_meta.egress_port == 2) {
+                    hdr.ethernet.srcAddr = S1_PATH0_MAC;
+                    hdr.ethernet.dstAddr = S2_PATH0_MAC;
+                } else if (std_meta.egress_port == 3) {
+                    hdr.ethernet.srcAddr = S1_PATH1_MAC;
+                    hdr.ethernet.dstAddr = S2_PATH1_MAC;
+                } else if (std_meta.egress_port == 4) {
+                    hdr.ethernet.srcAddr = S1_PATH2_MAC;
+                    hdr.ethernet.dstAddr = S2_PATH2_MAC;
+                }
+            } else if (meta.int_meta.swid == 2) {
+                if (std_meta.egress_port == 2) {
+                    hdr.ethernet.srcAddr = S2_PATH0_MAC;
+                    hdr.ethernet.dstAddr = S1_PATH0_MAC;
+                } else if (std_meta.egress_port == 3) {
+                    hdr.ethernet.srcAddr = S2_PATH1_MAC;
+                    hdr.ethernet.dstAddr = S1_PATH1_MAC;
+                } else if (std_meta.egress_port == 4) {
+                    hdr.ethernet.srcAddr = S2_PATH2_MAC;
+                    hdr.ethernet.dstAddr = S1_PATH2_MAC;
+                }
+            }
+        }
+
         if (((meta.int_meta.is_terminal == 1 &&
               std_meta.egress_rid == 1) ||
               (meta.int_meta.is_terminal == 1 &&
@@ -724,6 +819,7 @@ control CovertIntDeparser(packet_out packet, in headers hdr)
 {
     apply {
         packet.emit(hdr.ethernet);
+        packet.emit(hdr.arp);
         packet.emit(hdr.ipv4);
         packet.emit(hdr.udp);
         packet.emit(hdr.int_shim);

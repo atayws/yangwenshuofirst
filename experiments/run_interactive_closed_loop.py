@@ -117,7 +117,7 @@ def start_background_services(h1, h2, args: argparse.Namespace) -> dict:
     ).strip().splitlines()[-1]
     time.sleep(0.5)
     iperf_client_pid = h2.cmd(
-        f"iperf -u -c 10.0.1.1 -b {args.iperf_rate} -t 86400 -i 5 "
+        f"iperf -u -c 10.0.1.2 -b {args.iperf_rate} -t 86400 -i 5 "
         f"> {RESULTS_DIR}/reverse_iperf_client_h2.log 2>&1 & echo $!"
     ).strip().splitlines()[-1]
     return {
@@ -193,11 +193,11 @@ def build_session_manifest(
     """生成本次输入对应的 chunk 发送清单，不写入其他结果目录。"""
     ns = SimpleNamespace(
         input=str(input_file),
-        dst_ip="10.0.1.2",
-        src_ip="10.0.1.1",
+        dst_ip="10.0.2.2",
+        src_ip="10.0.1.2",
         iface="h1-eth0",
         src_mac=None,
-        dst_mac="00:00:00:00:00:02",
+        dst_mac="00:00:00:00:01:01",
         sport=41000,
         base_dport=base_dport,
         chunk_size=chunk_size,
@@ -281,8 +281,8 @@ def send_one_session(
         chunk_id = int(row["chunk_id"])
         h1.cmd(
             f"cd {PROJECT_ROOT} && python3 experiments/live_manual_policy_sender.py "
-            f"--input {input_file} --dst-ip 10.0.1.2 --src-ip 10.0.1.1 "
-            f"--iface h1-eth0 --dst-mac 00:00:00:00:00:02 "
+            f"--input {input_file} --dst-ip 10.0.2.2 --src-ip 10.0.1.2 "
+            f"--iface h1-eth0 --dst-mac 00:00:00:00:01:01 "
             f"--base-dport {args.base_dport} --chunk-size {args.chunk_size} "
             f"--session-id {session_id} --plan-file {plan_file} "
             f"--chunk-id {chunk_id} --pace-ms {args.pace_ms} --send-mode scapy-l2 "
@@ -485,7 +485,7 @@ def main() -> int:
         h1, h2 = net.get("h1", "h2")
         configure_s2_for_reverse_int()
         configure_s1_round_robin_for_business()
-        ping_out = h1.cmd("ping -c 2 10.0.1.2")
+        ping_out = h1.cmd("ping -c 2 10.0.2.2")
         (RESULTS_DIR / "ping.txt").write_text(ping_out, encoding="utf-8")
         print("[interactive] 启动 h2->h1 UDP iperf 和 h1 INT 解析器...")
         service_info = start_background_services(h1, h2, args)

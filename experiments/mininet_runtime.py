@@ -193,8 +193,8 @@ def build_net(args):
         cleanup_stale_mininet_state()
     net = Mininet(controller=None, link=TCLink, autoSetMacs=False, autoStaticArp=True)
 
-    h1 = net.addHost("h1", ip="10.0.1.1/24", mac="00:00:00:00:00:01")
-    h2 = net.addHost("h2", ip="10.0.1.2/24", mac="00:00:00:00:00:02")
+    h1 = net.addHost("h1", ip="10.0.1.2/24", mac="00:00:00:00:00:01")
+    h2 = net.addHost("h2", ip="10.0.2.2/24", mac="00:00:00:00:00:02")
 
     s1 = net.addSwitch(
         "s1",
@@ -230,14 +230,22 @@ def start_configured_net(args):
     disable_offload(net)
 
     h1, h2 = net.get("h1", "h2")
-    h1.setARP("10.0.1.2", "00:00:00:00:00:02")
-    h2.setARP("10.0.1.1", "00:00:00:00:00:01")
+    configure_host_routing(h1, h2)
 
     wait_for_thrift(9090)
     wait_for_thrift(9091)
     run_cli_file(9090, "s1", args.s1_cli, args.log_dir)
     run_cli_file(9091, "s2", args.s2_cli, args.log_dir)
     return net
+
+
+def configure_host_routing(h1, h2):
+    """配置跨网段主机默认路由；网关 ARP 由 P4 交换机应答。"""
+
+    h1.cmd("ip route replace default via 10.0.1.1 dev h1-eth0")
+    h2.cmd("ip route replace default via 10.0.2.1 dev h2-eth0")
+    h1.cmd("ip neigh flush dev h1-eth0")
+    h2.cmd("ip neigh flush dev h2-eth0")
 
 
 def main() -> int:
@@ -257,7 +265,7 @@ def main() -> int:
         info("*** 启动 Mininet/BMv2\n")
         net = start_configured_net(args)
         info("\n*** 拓扑已启动\n")
-        info("*** 主机：h1=10.0.1.1，h2=10.0.1.2\n")
+        info("*** 主机：h1=10.0.1.2/24 gw=10.0.1.1，h2=10.0.2.2/24 gw=10.0.2.1\n")
         info("*** 交换机 thrift：s1=9090，s2=9091\n")
         info(f"*** MTU：终端侧={args.host_mtu}，s1-s2 链路={args.trunk_mtu}\n")
         info("*** 退出 Mininet CLI 后会自动清理 simple_switch\n\n")

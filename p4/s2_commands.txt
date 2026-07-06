@@ -27,8 +27,9 @@ register_reset reg_wrr_counter
 register_reset reg_redundancy_mcast_grp
 
 table_set_default ipv4_lpm drop
-table_add ipv4_lpm set_egress 10.0.1.2/32 => 1
-table_add ipv4_lpm set_egress 10.0.1.1/32 => 2
+table_add arp_request_table arp_reply 1 10.0.2.1 => 00:00:00:00:02:01
+table_add ipv4_lpm ipv4_forward 10.0.2.2/32 => 00:00:00:00:00:02 00:00:00:00:02:01 1
+table_add ipv4_lpm ipv4_forward 10.0.1.2/32 => 00:00:00:00:01:01 00:00:00:00:02:02 2
 
 table_add path_to_port route_by_path 0 => 0 2 3 4
 table_add path_to_port route_by_path 1 => 1 2 3 4
@@ -49,7 +50,7 @@ register_write reg_int_enabled 0 1
 register_write reg_int_interval_us 0 500000
 register_write reg_next_sample_time 0 0
 register_write reg_int_terminal_swid 0 1
-register_write reg_int_dst_filter 0 167772417
+register_write reg_int_dst_filter 0 167772418
 register_write reg_int_proto_filter 0 0
 register_write reg_int_probe_path 0 0
 register_write reg_int_probe_mode 0 0

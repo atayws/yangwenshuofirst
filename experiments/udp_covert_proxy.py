@@ -59,7 +59,7 @@ def parse_args() -> argparse.Namespace:
     sender.add_argument("--sport", type=int, default=0, help="0 表示沿用本地业务源端口")
     sender.add_argument("--iface", default=None, help="scapy-l2 模式使用的出接口")
     sender.add_argument("--src-mac", default=None)
-    sender.add_argument("--dst-mac", default="00:00:00:00:00:02")
+    sender.add_argument("--dst-mac", default="00:00:00:00:01:01")
     sender.add_argument("--send-mode", choices=["auto", "socket", "scapy-l2"], default="auto")
     sender.add_argument("--path-id", type=int, default=0)
     sender.add_argument("--path-weights", default="1,1,1")
@@ -122,7 +122,7 @@ def parse_args() -> argparse.Namespace:
     plan_sender.add_argument("--src-ip", default=None)
     plan_sender.add_argument("--iface", required=True)
     plan_sender.add_argument("--src-mac", default=None)
-    plan_sender.add_argument("--dst-mac", default="00:00:00:00:00:02")
+    plan_sender.add_argument("--dst-mac", default="00:00:00:00:01:01")
     plan_sender.add_argument("--sport", type=int, default=0, help="0 表示沿用本地业务源端口")
     plan_sender.add_argument("--plain-remote-port", type=int, default=6200)
     plan_sender.add_argument("--control-dir", default=None, help="可选：逐段等待控制面确认路径已切换")
@@ -726,6 +726,8 @@ def run_plan_sender(args: argparse.Namespace) -> int:
 
             if strategy_id in TIMING_STRATEGIES:
                 repeat_target = max(1, int(segment.get("repeat", args.timing_repeat)))
+            elif strategy_id == 4:
+                repeat_target = max(1, int(segment.get("repeat", 1)))
             elif strategy_id == 5:
                 repeat_target = max(1, int(segment.get("repeat", args.path_sequence_repeat)))
             else:

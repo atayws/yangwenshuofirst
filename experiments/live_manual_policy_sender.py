@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--src-ip", default=None)
     parser.add_argument("--iface", default=None)
     parser.add_argument("--src-mac", default=None)
-    parser.add_argument("--dst-mac", default="00:00:00:00:00:02")
+    parser.add_argument("--dst-mac", default="00:00:00:00:01:01")
     parser.add_argument("--sport", type=int, default=41000)
     parser.add_argument("--base-dport", type=int, default=51200)
     parser.add_argument("--chunk-size", type=int, default=4)

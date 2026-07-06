@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="820" viewBox="0 0 1500 820">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#30343b"/>
+    </marker>
+    <style>
+      .title { font: 700 34px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #1f2933; }
+      .subtitle { font: 400 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .label { font: 600 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #111827; }
+      .small { font: 400 17px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #374151; }
+      .tiny { font: 400 14px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .mono { font: 600 17px "Consolas", "Courier New", monospace; fill: #111827; }
+      .line { stroke: #30343b; stroke-width: 2.5; fill: none; }
+      .dash { stroke: #6b7280; stroke-width: 2; stroke-dasharray: 7 6; fill: none; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 10; }
+      .bit-a { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+      .bit-b { fill: #e0f2fe; stroke: #0284c7; stroke-width: 2; }
+      .bit-c { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; }
+      .bit-d { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .bit-e { fill: #fee2e2; stroke: #dc2626; stroke-width: 2; }
+      .src { fill: #eef6ff; stroke: #2364aa; stroke-width: 2; rx: 7; }
+      .coded { fill: #fff7ed; stroke: #ea580c; stroke-width: 2; rx: 7; }
+      .path { fill: #f8fafc; stroke: #94a3b8; stroke-width: 2; rx: 8; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="820" fill="#ffffff"/>
+  <text x="70" y="62" class="title">策略4：IP-ID 喷泉码多路径协同隐蔽传输</text>
+  <text x="70" y="99" class="subtitle">发送端生成冗余喷泉码符号并写入 IP-ID，多路径分发；接收端收到足够多独立符号即可恢复。</text>
+
+  <text x="80" y="155" class="label">IPv4 Identification，16 bit</text>
+  <g transform="translate(80,180)">
+    <rect x="0" y="0" width="65" height="82" class="bit-a"/>
+    <rect x="65" y="0" width="195" height="82" class="bit-b"/>
+    <rect x="260" y="0" width="240" height="82" class="bit-c"/>
+    <rect x="500" y="0" width="290" height="82" class="bit-d"/>
+    <rect x="790" y="0" width="290" height="82" class="bit-e"/>
+    <text x="17" y="32" class="mono">1</text>
+    <text x="10" y="62" class="tiny">flag</text>
+    <text x="103" y="32" class="mono">100</text>
+    <text x="91" y="62" class="tiny">strategy=4</text>
+    <text x="333" y="32" class="mono">frame_id</text>
+    <text x="343" y="62" class="tiny">4 bit</text>
+    <text x="590" y="32" class="mono">symbol_id</text>
+    <text x="610" y="62" class="tiny">4 bit</text>
+    <text x="865" y="32" class="mono">coded</text>
+    <text x="842" y="62" class="tiny">4 bit，掩码后</text>
+  </g>
+
+  <rect x="80" y="330" width="430" height="180" class="box"/>
+  <text x="110" y="370" class="label">源符号 frame</text>
+  <g transform="translate(110,400)">
+    <rect x="0" y="0" width="52" height="52" class="src"/><text x="17" y="33" class="mono">x0</text>
+    <rect x="62" y="0" width="52" height="52" class="src"/><text x="79" y="33" class="mono">x1</text>
+    <rect x="124" y="0" width="52" height="52" class="src"/><text x="141" y="33" class="mono">x2</text>
+    <rect x="186" y="0" width="52" height="52" class="src"/><text x="203" y="33" class="mono">x3</text>
+    <text x="255" y="33" class="small">... 共 K 个 nibble</text>
+  </g>
+  <text x="110" y="485" class="tiny">帧头：F4 + length + CRC + data</text>
+
+  <line x1="530" y1="420" x2="650" y2="420" class="line" marker-end="url(#arrow)"/>
+
+  <rect x="675" y="330" width="360" height="180" class="box"/>
+  <text x="705" y="370" class="label">喷泉码符号</text>
+  <text x="705" y="410" class="small">前 K 个：系统符号</text>
+  <text x="705" y="442" class="small">后续符号：多个源 nibble XOR</text>
+  <text x="705" y="474" class="mono">y_j = x_a xor x_b xor ...</text>
+
+  <line x1="1055" y1="420" x2="1175" y2="420" class="line" marker-end="url(#arrow)"/>
+
+  <rect x="1200" y="330" width="220" height="180" class="box"/>
+  <text x="1230" y="370" class="label">写入 IP-ID</text>
+  <text x="1230" y="410" class="small">frame_id</text>
+  <text x="1230" y="442" class="small">symbol_id</text>
+  <text x="1230" y="474" class="small">coded_nibble</text>
+
+  <text x="80" y="585" class="label">多路径分发</text>
+  <g transform="translate(110,620)">
+    <rect x="0" y="0" width="310" height="58" class="path"/>
+    <text x="25" y="37" class="small">链路1：符号子集</text>
+    <rect x="440" y="0" width="310" height="58" class="path"/>
+    <text x="465" y="37" class="small">链路2：符号子集</text>
+    <rect x="880" y="0" width="310" height="58" class="path"/>
+    <text x="905" y="37" class="small">链路3：符号子集</text>
+    <line x1="310" y1="29" x2="430" y2="29" class="dash"/>
+    <line x1="750" y1="29" x2="870" y2="29" class="dash"/>
+  </g>
+
+  <rect x="80" y="715" width="420" height="72" class="box"/>
+  <text x="110" y="748" class="small">抗丢包：不要求收到全部符号</text>
+  <text x="110" y="774" class="tiny">每个 frame 收到足够多独立符号即可解码。</text>
+
+  <rect x="540" y="715" width="420" height="72" class="box"/>
+  <text x="570" y="748" class="small">完整性：CRC 校验恢复结果</text>
+  <text x="570" y="774" class="tiny">避免错误组合静默输出。</text>
+
+  <rect x="1000" y="715" width="420" height="72" class="box"/>
+  <text x="1030" y="748" class="small">适用：两条或三条路径协同</text>
+  <text x="1030" y="774" class="tiny">比单路径更适合高丢包场景。</text>
+</svg>

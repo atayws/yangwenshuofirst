@@ -24,7 +24,7 @@ class MininetConfig:
     p4_json_path: str = ""
     switches: List[str] = field(default_factory=lambda: ["s1", "s2"])
     hosts: List[Tuple[str, str]] = field(default_factory=lambda: [
-        ("h1", "10.0.1.1/24"), ("h2", "10.0.1.2/24")
+        ("h1", "10.0.1.2/24"), ("h2", "10.0.2.2/24")
     ])
     links: List[MininetLinkConfig] = field(default_factory=list)
 

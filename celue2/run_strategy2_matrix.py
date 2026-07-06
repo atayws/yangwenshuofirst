@@ -169,14 +169,13 @@ def main() -> int:
         runtime.configure_mtu(net, runtime_args.host_mtu, runtime_args.trunk_mtu)
         runtime.disable_offload(net)
         h1, h2, s1, s2 = net.get("h1", "h2", "s1", "s2")
-        h1.setARP("10.0.1.2", "00:00:00:00:00:02")
-        h2.setARP("10.0.1.1", "00:00:00:00:00:01")
+        runtime.configure_host_routing(h1, h2)
         runtime.wait_for_thrift(9090)
         runtime.wait_for_thrift(9091)
         runtime.run_cli_file(9090, "s1", str(S1_CLI), str(LOG_DIR))
         runtime.run_cli_file(9091, "s2", str(S2_CLI), str(LOG_DIR))
 
-        ping_out = h1.cmd("ping -c 2 10.0.1.2")
+        ping_out = h1.cmd("ping -c 2 10.0.2.2")
         (RESULTS_DIR / "matrix_ping.txt").write_text(ping_out, encoding="utf-8")
         print("[celue2] ping 检查完成")
 

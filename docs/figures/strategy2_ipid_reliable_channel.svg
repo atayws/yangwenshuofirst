@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="820" viewBox="0 0 1500 820">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#30343b"/>
+    </marker>
+    <style>
+      .title { font: 700 34px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #1f2933; }
+      .subtitle { font: 400 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .label { font: 600 20px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #111827; }
+      .small { font: 400 17px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #374151; }
+      .tiny { font: 400 14px "Microsoft YaHei", "SimSun", Arial, sans-serif; fill: #4b5563; }
+      .mono { font: 600 17px "Consolas", "Courier New", monospace; fill: #111827; }
+      .formula { font: 600 20px "Cambria Math", "Times New Roman", "Microsoft YaHei", serif; fill: #111827; }
+      .line { stroke: #30343b; stroke-width: 2.5; fill: none; }
+      .dash { stroke: #6b7280; stroke-width: 2; stroke-dasharray: 7 6; fill: none; }
+      .box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; rx: 10; }
+      .bit-a { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+      .bit-b { fill: #e0f2fe; stroke: #0284c7; stroke-width: 2; }
+      .bit-c { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; }
+      .bit-d { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .data { fill: #eef6ff; stroke: #2364aa; stroke-width: 2; rx: 7; }
+      .parity { fill: #ecfdf5; stroke: #059669; stroke-width: 2; rx: 7; }
+      .auth { fill: #fff7ed; stroke: #ea580c; stroke-width: 2; rx: 7; }
+      .muted { fill: #f8fafc; stroke: #d0d7de; stroke-width: 2; rx: 8; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="820" fill="#ffffff"/>
+
+  <text x="70" y="62" class="title">策略2：基于 IPv4 ID 字段的可靠存储型隐蔽信道</text>
+  <text x="70" y="99" class="subtitle">发送端在真实业务包的 IP-ID 字段中写入策略标识、块内序号与加密半字节；接收端按块重组并利用冗余恢复。</text>
+
+  <!-- Packet to IP-ID -->
+  <rect x="80" y="150" width="260" height="105" class="box"/>
+  <text x="112" y="192" class="label">真实业务包</text>
+  <text x="112" y="225" class="tiny">只修改 IPv4 Identification</text>
+  <line x1="350" y1="202" x2="470" y2="202" class="line" marker-end="url(#arrow)"/>
+
+  <!-- IP-ID bit layout -->
+  <text x="485" y="150" class="label">IPv4 Identification，16 bit</text>
+  <g transform="translate(485,175)">
+    <rect x="0" y="0" width="65" height="82" class="bit-a"/>
+    <rect x="65" y="0" width="195" height="82" class="bit-b"/>
+    <rect x="260" y="0" width="260" height="82" class="bit-c"/>
+    <rect x="520" y="0" width="520" height="82" class="bit-d"/>
+
+    <text x="17" y="32" class="mono">1</text>
+    <text x="10" y="62" class="tiny">flag</text>
+
+    <text x="103" y="32" class="mono">010</text>
+    <text x="91" y="62" class="tiny">strategy=2</text>
+
+    <text x="342" y="32" class="mono">seq_mod</text>
+    <text x="347" y="62" class="tiny">4 bit，0~15</text>
+
+    <text x="687" y="32" class="mono">encrypted_value</text>
+    <text x="706" y="62" class="tiny">8 bit，加密值</text>
+  </g>
+
+  <!-- Decryption -->
+  <line x1="1050" y1="216" x2="1170" y2="216" class="line" marker-end="url(#arrow)"/>
+  <rect x="1190" y="160" width="240" height="115" class="muted"/>
+  <text x="1235" y="198" class="label">解密后</text>
+  <text x="1220" y="232" class="mono">block_mod | nibble</text>
+  <text x="1218" y="258" class="tiny">4 bit + 4 bit</text>
+
+  <!-- Block structure -->
+  <text x="80" y="345" class="label">块内结构：16 个片段</text>
+  <text x="80" y="376" class="small">每个片段对应一个业务包的 IP-ID；默认每个片段重复发送 3 次。</text>
+
+  <g transform="translate(80,415)">
+    <!-- data nibbles -->
+    <rect x="0" y="0" width="62" height="62" class="data"/>
+    <text x="17" y="37" class="mono">D0</text>
+    <rect x="72" y="0" width="62" height="62" class="data"/>
+    <text x="89" y="37" class="mono">D1</text>
+    <rect x="144" y="0" width="62" height="62" class="data"/>
+    <text x="161" y="37" class="mono">D2</text>
+    <rect x="216" y="0" width="62" height="62" class="data"/>
+    <text x="233" y="37" class="mono">D3</text>
+    <rect x="288" y="0" width="62" height="62" class="data"/>
+    <text x="305" y="37" class="mono">D4</text>
+    <rect x="360" y="0" width="62" height="62" class="data"/>
+    <text x="377" y="37" class="mono">D5</text>
+    <rect x="432" y="0" width="62" height="62" class="data"/>
+    <text x="449" y="37" class="mono">D6</text>
+    <rect x="504" y="0" width="62" height="62" class="data"/>
+    <text x="521" y="37" class="mono">D7</text>
+    <rect x="576" y="0" width="62" height="62" class="data"/>
+    <text x="593" y="37" class="mono">D8</text>
+    <rect x="648" y="0" width="62" height="62" class="data"/>
+    <text x="665" y="37" class="mono">D9</text>
+    <rect x="720" y="0" width="62" height="62" class="data"/>
+    <text x="732" y="37" class="mono">D10</text>
+    <rect x="792" y="0" width="62" height="62" class="data"/>
+    <text x="804" y="37" class="mono">D11</text>
+
+    <!-- parity and auth -->
+    <rect x="886" y="0" width="62" height="62" class="parity"/>
+    <text x="903" y="37" class="mono">P0</text>
+    <rect x="958" y="0" width="62" height="62" class="parity"/>
+    <text x="975" y="37" class="mono">P1</text>
+    <rect x="1030" y="0" width="62" height="62" class="parity"/>
+    <text x="1047" y="37" class="mono">P2</text>
+    <rect x="1124" y="0" width="72" height="62" class="auth"/>
+    <text x="1138" y="37" class="mono">AUTH</text>
+
+    <text x="0" y="96" class="tiny">seq_mod 0~11：真实数据 nibble，共 48 bit = 6 字节</text>
+    <text x="886" y="96" class="tiny">12~14：XOR 冗余</text>
+    <text x="1124" y="96" class="tiny">15：块认证</text>
+  </g>
+
+  <!-- Encoding steps -->
+  <rect x="80" y="565" width="400" height="165" class="box"/>
+  <text x="110" y="604" class="label">发送端</text>
+  <text x="110" y="640" class="small">1. 隐蔽数据加帧头：P2 + length</text>
+  <text x="110" y="672" class="small">2. 按 nibble 切块，每块 12 个数据 nibble</text>
+  <text x="110" y="704" class="small">3. 生成冗余与认证，写入 IP-ID</text>
+
+  <line x1="500" y1="648" x2="620" y2="648" class="line" marker-end="url(#arrow)"/>
+
+  <rect x="645" y="565" width="360" height="165" class="box"/>
+  <text x="675" y="604" class="label">接收端</text>
+  <text x="675" y="640" class="small">1. 读取 flag 与 strategy_id</text>
+  <text x="675" y="672" class="small">2. 按 block_mod + seq_mod 重组</text>
+  <text x="675" y="704" class="small">3. 多数投票、XOR 恢复、认证校验</text>
+
+  <line x1="1025" y1="648" x2="1145" y2="648" class="line" marker-end="url(#arrow)"/>
+
+  <rect x="1170" y="565" width="260" height="165" class="muted"/>
+  <text x="1200" y="604" class="label">示例</text>
+  <text x="1200" y="640" class="formula">1 块 = 16 × 3 = 48 包</text>
+  <text x="1200" y="672" class="small">可承载 6 字节块数据</text>
+  <text x="1200" y="704" class="tiny">含帧头时，20 bit 实现中需 2 块</text>
+
+  <text x="70" y="780" class="tiny">注：图中 P0/P1/P2 表示 XOR parity，不是业务包编号；业务包本身仍正常转发，隐蔽信息仅叠加在 IPv4 ID 字段。</text>
+</svg>

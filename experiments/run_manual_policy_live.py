@@ -161,9 +161,9 @@ def build_manifest(
             "--input",
             str(INPUT_FILE),
             "--dst-ip",
-            "10.0.1.2",
+            "10.0.2.2",
             "--src-ip",
-            "10.0.1.1",
+            "10.0.1.2",
             "--iface",
             "h1-eth0",
             "--base-dport",
@@ -275,8 +275,7 @@ def run_live(args: argparse.Namespace) -> dict:
         runtime.configure_mtu(net, runtime_args.host_mtu, runtime_args.trunk_mtu)
         runtime.disable_offload(net)
         h1, h2, _s1, _s2 = net.get("h1", "h2", "s1", "s2")
-        h1.setARP("10.0.1.2", "00:00:00:00:00:02")
-        h2.setARP("10.0.1.1", "00:00:00:00:00:01")
+        runtime.configure_host_routing(h1, h2)
         runtime.wait_for_thrift(9090)
         runtime.wait_for_thrift(9091)
         runtime.run_cli_file(9090, "s1", str(S1_CLI), str(LOG_DIR))
@@ -286,7 +285,7 @@ def run_live(args: argparse.Namespace) -> dict:
             apply_link_config(net, link_config)
         configure_s2_for_reverse_int()
 
-        ping_out = h1.cmd("ping -c 2 10.0.1.2")
+        ping_out = h1.cmd("ping -c 2 10.0.2.2")
         (RESULTS_DIR / "ping.txt").write_text(ping_out, encoding="utf-8")
 
         expected_packets = sum(int(row["packets"]) for row in manifest)
@@ -303,7 +302,7 @@ def run_live(args: argparse.Namespace) -> dict:
         ).strip().splitlines()[-1]
         time.sleep(0.5)
         iperf_client_pid = h2.cmd(
-            f"iperf -u -c 10.0.1.1 -b 700K -t {max(6, receive_timeout - 3)} -i 1 "
+            f"iperf -u -c 10.0.1.2 -b 700K -t {max(6, receive_timeout - 3)} -i 1 "
             f"> {RESULTS_DIR}/reverse_iperf_client_h2.log 2>&1 & echo $!"
         ).strip().splitlines()[-1]
 
@@ -325,8 +324,8 @@ def run_live(args: argparse.Namespace) -> dict:
             print(f"[manual-live] 发送 chunk={chunk_id} strategy={row['strategy_id']} paths={row['paths']}")
             h1.cmd(
                 f"cd {ROOT} && python3 experiments/live_manual_policy_sender.py "
-                f"--input {INPUT_FILE} --dst-ip 10.0.1.2 --src-ip 10.0.1.1 "
-                f"--iface h1-eth0 --dst-mac 00:00:00:00:00:02 --base-dport {args.base_dport} "
+                f"--input {INPUT_FILE} --dst-ip 10.0.2.2 --src-ip 10.0.1.2 "
+                f"--iface h1-eth0 --dst-mac 00:00:00:00:01:01 --base-dport {args.base_dport} "
                 f"--chunk-size {args.chunk_size} --session-id {args.session_id} "
                 f"{('--plan-file ' + str(args.plan_file)) if args.plan_file else ''} "
                 f"--chunk-id {chunk_id} --pace-ms {args.pace_ms} --send-mode scapy-l2 "

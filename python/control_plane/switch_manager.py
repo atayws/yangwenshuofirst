@@ -23,6 +23,8 @@ class RouteEntry:
     dst_ip: str
     prefix_len: int
     egress_port: int
+    dst_mac: str = "00:00:00:00:00:00"
+    src_mac: str = "00:00:00:00:00:00"
 
 
 class SwitchManager:
@@ -53,7 +55,11 @@ class SwitchManager:
         if conn:
             for e in entries:
                 conn.write_table("ipv4_lpm", {"dstAddr": (e.dst_ip, e.prefix_len)},
-                                "set_egress", {"port": e.egress_port})
+                                "ipv4_forward", {
+                                    "dst_mac": e.dst_mac,
+                                    "src_mac": e.src_mac,
+                                    "port": e.egress_port,
+                                })
 
     def configure_int(
         self,

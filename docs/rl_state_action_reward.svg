@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">强化学习状态动作奖励设计</title>
+  <desc id="desc">展示低空多路径隐蔽传输中强化学习的状态、动作和奖励函数设计。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F7FAFC"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#102A43" flood-opacity="0.13"/>
+    </filter>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#334E68"/>
+    </marker>
+    <style>
+      .font { font-family: "Microsoft YaHei", "SimHei", Arial, sans-serif; }
+      .title { font-size: 40px; font-weight: 700; fill: #102A43; }
+      .subtitle { font-size: 22px; fill: #52677A; }
+      .head { font-size: 30px; font-weight: 700; fill: #FFFFFF; }
+      .text { font-size: 21px; fill: #334E68; }
+      .small { font-size: 18px; fill: #52677A; }
+      .formula { font-family: "Times New Roman", serif; font-size: 28px; fill: #102A43; font-style: italic; }
+      .tag { font-size: 18px; font-weight: 700; fill: #FFFFFF; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <text x="800" y="72" text-anchor="middle" class="font title">强化学习模块如何在 PPT 中表达</text>
+  <text x="800" y="112" text-anchor="middle" class="font subtitle">把问题讲成一个“状态 — 动作 — 奖励”的闭环决策过程</text>
+
+  <g filter="url(#shadow)">
+    <rect x="90" y="205" width="420" height="430" rx="28" fill="#FFFFFF"/>
+    <rect x="90" y="205" width="420" height="82" rx="28" fill="#2457C5"/>
+    <rect x="90" y="260" width="420" height="35" fill="#2457C5"/>
+  </g>
+  <text x="300" y="257" text-anchor="middle" class="font head">状态 State</text>
+  <text x="135" y="345" class="font text">输入：INT 采集的链路状态</text>
+  <text x="135" y="398" class="font small">• delay：路径时延</text>
+  <text x="135" y="438" class="font small">• jitter：时延抖动</text>
+  <text x="135" y="478" class="font small">• loss：丢包率</text>
+  <text x="135" y="518" class="font small">• bw：带宽利用率</text>
+  <text x="135" y="558" class="font small">• qdepth：队列深度</text>
+  <text x="300" y="607" text-anchor="middle" class="formula">sₜ=[d,j,l,b,q]₁…₃</text>
+
+  <g filter="url(#shadow)">
+    <rect x="590" y="205" width="420" height="430" rx="28" fill="#FFFFFF"/>
+    <rect x="590" y="205" width="420" height="82" rx="28" fill="#159A73"/>
+    <rect x="590" y="260" width="420" height="35" fill="#159A73"/>
+  </g>
+  <text x="800" y="257" text-anchor="middle" class="font head">动作 Action</text>
+  <text x="635" y="345" class="font text">输出：选择传输方案</text>
+  <text x="635" y="398" class="font small">• 选择隐蔽策略：0～5</text>
+  <text x="635" y="438" class="font small">• 选择传输路径：path0/1/2</text>
+  <text x="635" y="478" class="font small">• 选择路径组合：单路/多路</text>
+  <text x="635" y="518" class="font small">• 调整重复次数或发送速率</text>
+  <text x="800" y="607" text-anchor="middle" class="formula">aₜ=(strategy, path, rate)</text>
+
+  <g filter="url(#shadow)">
+    <rect x="1090" y="205" width="420" height="430" rx="28" fill="#FFFFFF"/>
+    <rect x="1090" y="205" width="420" height="82" rx="28" fill="#D98A00"/>
+    <rect x="1090" y="260" width="420" height="35" fill="#D98A00"/>
+  </g>
+  <text x="1300" y="257" text-anchor="middle" class="font head">奖励 Reward</text>
+  <text x="1135" y="345" class="font text">目标：可靠、隐蔽、低开销</text>
+  <text x="1135" y="398" class="font small">• 解码正确率越高越好</text>
+  <text x="1135" y="438" class="font small">• 对业务影响越小越好</text>
+  <text x="1135" y="478" class="font small">• 时延和冗余开销越低越好</text>
+  <text x="1135" y="518" class="font small">• 被检测风险越低越好</text>
+  <text x="1300" y="607" text-anchor="middle" class="formula">rₜ=αA+βC-γD-δO</text>
+
+  <path d="M510 420 L575 420" stroke="#334E68" stroke-width="7" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M1010 420 L1075 420" stroke="#334E68" stroke-width="7" stroke-linecap="round" marker-end="url(#arrow)"/>
+
+  <g class="font">
+    <rect x="185" y="720" width="1230" height="76" rx="28" fill="#102A43" opacity="0.92"/>
+    <text x="800" y="768" text-anchor="middle" class="tag">PPT 表达重点：强化学习不是单独传输数据，而是根据链路状态自动选择“哪条路径 + 哪种隐蔽策略”</text>
+  </g>
+</svg>

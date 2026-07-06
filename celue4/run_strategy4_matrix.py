@@ -175,7 +175,7 @@ def run_case(h1, h2, s1, s2, case, expected_count: int, expected_bytes: int, tim
     iperf_server_pid = h1.cmd(f"iperf -s -u -i 1 > {out_dir}/iperf_server.txt 2>&1 & echo $!").strip().splitlines()[-1]
     time.sleep(0.5)
     iperf_client_pid = h2.cmd(
-        f"iperf -u -c 10.0.1.1 -b 1M -t {max(6, timeout_s - 2)} -i 1 "
+        f"iperf -u -c 10.0.1.2 -b 1M -t {max(6, timeout_s - 2)} -i 1 "
         f"> {out_dir}/iperf_client.txt 2>&1 & echo $!"
     ).strip().splitlines()[-1]
 
@@ -416,13 +416,12 @@ def main() -> int:
         runtime.configure_mtu(net, runtime_args.host_mtu, runtime_args.trunk_mtu)
         runtime.disable_offload(net)
         h1, h2, s1, s2 = net.get("h1", "h2", "s1", "s2")
-        h1.setARP("10.0.1.2", "00:00:00:00:00:02")
-        h2.setARP("10.0.1.1", "00:00:00:00:00:01")
+        runtime.configure_host_routing(h1, h2)
         runtime.wait_for_thrift(9090)
         runtime.wait_for_thrift(9091)
         runtime.run_cli_file(9090, "s1", str(S1_CLI), str(LOG_DIR))
         runtime.run_cli_file(9091, "s2", str(S2_CLI), str(LOG_DIR))
-        (RESULTS_DIR / "matrix_ping.txt").write_text(h1.cmd("ping -c 2 10.0.1.2"), encoding="utf-8")
+        (RESULTS_DIR / "matrix_ping.txt").write_text(h1.cmd("ping -c 2 10.0.2.2"), encoding="utf-8")
         print("[celue4] ping 检查完成")
         for index, case in enumerate(selected_cases):
             port = args.start_port + index
