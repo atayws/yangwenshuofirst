@@ -98,6 +98,7 @@ def main() -> int:
         strategy_configs=strategy_configs,
         accept_timing_without_port=True,
         timing_ports={0: None, 1: None},
+        allow_explicit_strategy_hint=True,
     )
 
     from scapy.all import IP, UDP, Raw, sniff

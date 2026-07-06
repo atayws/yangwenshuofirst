@@ -95,11 +95,13 @@ class StrategyReceiverRouter:
         sync_key: int = 0x5A17,
         timing_ports: Optional[Dict[int, int]] = None,
         accept_timing_without_port: bool = True,
+        allow_explicit_strategy_hint: bool = False,
     ):
         self.strategy_configs = strategy_configs or {}
         self.sync_key = int(sync_key)
         self.timing_ports = timing_ports or {0: 50000, 1: 50001}
         self.accept_timing_without_port = accept_timing_without_port
+        self.allow_explicit_strategy_hint = allow_explicit_strategy_hint
         self.buffers: Dict[RouterKey, List[RoutedPacket]] = {}
         self.ignored_packets: List[dict] = []
         self._arrival_index = 0
@@ -160,9 +162,10 @@ class StrategyReceiverRouter:
 
     def detect(self, payload: bytes, metadata: dict) -> Optional[DetectionResult]:
         """按优先级识别当前包属于哪个隐蔽策略。"""
-        explicit = self._detect_explicit_hint(metadata)
-        if explicit is not None:
-            return explicit
+        if self.allow_explicit_strategy_hint:
+            explicit = self._detect_explicit_hint(metadata)
+            if explicit is not None:
+                return explicit
 
         ip_id_result = self._detect_ip_id(metadata)
         if ip_id_result is not None:

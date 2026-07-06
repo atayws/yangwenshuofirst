@@ -277,7 +277,10 @@ def build_records(
 
 def decode_session(records: List[dict], strategy_configs: Dict[int, dict]) -> Tuple[dict, bytes]:
     """使用统一分发器和全局重组器恢复隐蔽数据。"""
-    router = StrategyReceiverRouter(strategy_configs=strategy_configs)
+    router = StrategyReceiverRouter(
+        strategy_configs=strategy_configs,
+        allow_explicit_strategy_hint=True,
+    )
     for record in records:
         router.ingest(record["payload"], record["metadata"])
 

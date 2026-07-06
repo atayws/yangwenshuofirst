@@ -845,6 +845,7 @@ def build_router(args: argparse.Namespace) -> StrategyReceiverRouter:
         sync_key=int(args.sync_key),
         timing_ports={0: None, 1: None} if timing_enabled else {0: -1, 1: -1},
         accept_timing_without_port=timing_enabled,
+        allow_explicit_strategy_hint=True,
     )
 
 
@@ -1156,6 +1157,7 @@ def run_plan_receiver(args: argparse.Namespace) -> int:
         sync_key=int(args.sync_key),
         timing_ports={},
         accept_timing_without_port=False,
+        allow_explicit_strategy_hint=True,
     )
 
     drains = []
